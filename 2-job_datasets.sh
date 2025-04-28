@@ -26,6 +26,7 @@ do
         do 
             echo "Seed=${seed}"
             python3 -u src/create_datasets.py --cv=${cv} --fold=${fold} --seed=${seed} > "logs/datasets_cv${cv}_fold${fold}_seed${seed}.txt"
+            # Testing: python3 -u src/create_datasets.py --cv=0 --fold=0 -seed=1 | tee "logs/datasets_cv0_fold0_seed1.txt  
         done
     done
     echo " "

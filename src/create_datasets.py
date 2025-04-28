@@ -44,10 +44,10 @@ elif args.cv == 2:
 print('Using fold', args.fold)
 
 OUTPUT_PATH = Path(f'output/cv{args.cv}')
-TRAIT_PATH = 'data/Training_Data/1_Training_Trait_Data_2014_2021.csv'
-TEST_PATH = 'data/Testing_Data/1_Submission_Template_2022.csv'
-META_TRAIN_PATH = 'data/Training_Data/2_Training_Meta_Data_2014_2021.csv'
-META_TEST_PATH = 'data/Testing_Data/2_Testing_Meta_Data_2022.csv'
+TRAIT_PATH = 'data/Training Data/1_Training_Trait_Data_2014_2021.csv'
+TEST_PATH = 'data/Testing Data/1_Submission_Template_2022.csv'
+META_TRAIN_PATH = 'data/Training Data/2_Training_Meta_Data_2014_2021.csv'
+META_TEST_PATH = 'data/Testing Data/2_Testing_Meta_Data_2022.csv'
 
 META_COLS = ['Env', 'weather_station_lat', 'weather_station_lon', 'treatment_not_standard']
 CAT_COLS = ['Env', 'Hybrid']  # to avoid NA imputation
@@ -64,7 +64,10 @@ if __name__ == '__main__':
 
     # TEST
     test = process_test_data(TEST_PATH)
+    print(test)
+    print(meta_test[META_COLS])
     xtest = test.merge(meta_test[META_COLS], on='Env', how='left').drop(['Field_Location'], axis=1)
+    # xtest should be all the ENVs and the META_COLS
     df_sub = xtest.reset_index()[['Env', 'Hybrid']]
 
     # TRAIT
@@ -76,16 +79,16 @@ if __name__ == '__main__':
     trait = agg_yield(trait)
 
     # WEATHER
-    weather = pd.read_csv('data/Training_Data/4_Training_Weather_Data_2014_2021.csv')
-    weather_test = pd.read_csv('data/Testing_Data/4_Testing_Weather_Data_2022.csv')
+    weather = pd.read_csv('data/Training Data/4_Training_Weather_Data_2014_2021.csv')
+    weather_test = pd.read_csv('data/Testing Data/4_Testing_Weather_Data_2022.csv')
     
     # SOIL
-    soil = pd.read_csv('data/Training_Data/3_Training_Soil_Data_2015_2021.csv')
-    soil_test = pd.read_csv('data/Testing_Data/3_Testing_Soil_Data_2022.csv')
+    soil = pd.read_csv('data/Training Data/3_Training_Soil_Data_2015_2021.csv')
+    soil_test = pd.read_csv('data/Testing Data/3_Testing_Soil_Data_2022.csv')
 
     # EC
-    ec = pd.read_csv('data/Training_Data/6_Training_EC_Data_2014_2021.csv').set_index('Env')
-    ec_test = pd.read_csv('data/Testing_Data/6_Testing_EC_Data_2022.csv').set_index('Env')
+    ec = pd.read_csv('data/Training Data/6_Training_EC_Data_2014_2021.csv').set_index('Env')
+    ec_test = pd.read_csv('data/Testing Data/6_Testing_EC_Data_2022.csv').set_index('Env')
 
     # fold assignment
     random.seed(args.seed)
@@ -113,19 +116,35 @@ if __name__ == '__main__':
     del xtrain['Field_Location'], xval['Field_Location']
     del xtrain['Year'], xval['Year']
 
+    print("test 0")
+    print(xtrain['Yield_Mg_ha'])
     # replace unadjusted means by BLUEs
     blues = pd.read_csv('output/blues.csv')
-    xtrain = xtrain.merge(blues, on=['Env', 'Hybrid'], how='left')
+    print("test 5")
+    print(blues["predicted.value"])
+    print(xtrain[['Env', 'Hybrid']].dtypes)
+    print(blues[['Env', 'Hybrid']].dtypes)
+    xtrain = xtrain.merge(blues, on=['Env', 'Hybrid'], how='right')
+    print("\n\n\ntest 6")
+    print(xtrain["predicted.value"])
     xtrain = process_blues(xtrain)
-    xval = xval.merge(blues, on=['Env', 'Hybrid'], how='left')
+    print('test 1')
+    print(xtrain['Yield_Mg_ha'])
+    xval = xval.merge(blues, on=['Env', 'Hybrid'], how='right')
     xval = process_blues(xval)
+    
 
     # feat eng (weather)
     weather_feats = feat_eng_weather(weather)
     weather_test_feats = feat_eng_weather(weather_test)
     xtrain = xtrain.merge(weather_feats, on='Env', how='left')
     xval = xval.merge(weather_feats, on='Env', how='left')
+    print("xtest before merge with meta_test:")
+    print(xtest.shape)
     xtest = xtest.merge(weather_test_feats, on='Env', how='left')
+    print("xtest after merge with meta_test:")
+    print(xtest.shape)
+    print(xtest.head())
 
     # feat eng (soil)
     xtrain = xtrain.merge(feat_eng_soil(soil), on='Env', how='left')
@@ -176,6 +195,8 @@ if __name__ == '__main__':
     print('lon:', sorted(set(xtrain['weather_station_lon'].unique())))
 
     # remove NA phenotype if needed
+    print('test 2')
+    print(xtrain['Yield_Mg_ha']) # debugging
     xtrain = xtrain[~xtrain['Yield_Mg_ha'].isnull()].reset_index(drop=True)
     xval = xval[~xval['Yield_Mg_ha'].isnull()].reset_index(drop=True)
     xtest = xtest[~xtest['Yield_Mg_ha'].isnull()].reset_index(drop=True)
@@ -187,11 +208,16 @@ if __name__ == '__main__':
 
     # extract targets
     ytrain = extract_target(xtrain)
+    print("test 3")
+    print("\n\n\n\nLength: ", len(ytrain)) # debugging
     yval = extract_target(xval)
     _ = extract_target(xtest)
 
+    print("Test 1.1")
     print(xtrain.isnull().sum() / len(xtrain))
+    print("Test 1.2")
     print(xval.isnull().sum() / len(xval))
+    print("test 1.3")
     print(xtest.isnull().sum() / len(xtest))
 
     # NA imputing

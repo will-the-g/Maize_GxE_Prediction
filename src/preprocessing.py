@@ -52,6 +52,8 @@ def agg_yield(df: pd.DataFrame):
 
 
 def process_blues(df: pd.DataFrame):
+    print("test 4")
+    print(df['predicted.value'])
     df['predicted.value'] = df.apply(lambda x: x['Yield_Mg_ha'] if x['predicted.value'] < 0 else x['predicted.value'], axis=1)
     df = df.drop('Yield_Mg_ha', axis=1)
     df = df.rename(columns={'predicted.value': 'Yield_Mg_ha'})
@@ -148,7 +150,7 @@ def create_folds(df: pd.DataFrame, val_year: int, cv: int, fillna: bool, random_
     
     assert cv in {0, 1, 2}, 'Select cv = 0, 1, or 2.'
 
-    vcfed_hybrids = pd.read_csv('data/Training_Data/All_hybrid_names_info.csv')
+    vcfed_hybrids = pd.read_csv('data/Training Data/All_hybrid_names_info.csv')
     vcfed_hybrids = vcfed_hybrids[vcfed_hybrids['vcf'] == True]['Hybrid']
 
     # train in known hybrids, predict in unknown year
