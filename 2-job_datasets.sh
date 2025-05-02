@@ -8,11 +8,11 @@
 #SBATCH --time=01:00:00
 
 ## configs 
-module purge
-module load gcc/9.3.1 mkl/19.0.5 intel/19.0.5 R/4.2.2 vcftools/0.1.15 plink/5.2 python/anaconda-3.10
-source /share/apps/bin/conda-3.10.sh
-conda deactivate
-conda activate maize_gxe_prediction
+#module purge
+#module load gcc/9.3.1 mkl/19.0.5 intel/19.0.5 R/4.2.2 vcftools/0.1.15 plink/5.2 python/anaconda-3.10
+#source /share/apps/bin/conda-3.10.sh
+#conda deactivate
+#conda activate maize_gxe_prediction
 
 
 ## create all datasets
@@ -26,7 +26,7 @@ do
         do 
             echo "Seed=${seed}"
             python3 -u src/create_datasets.py --cv=${cv} --fold=${fold} --seed=${seed} > "logs/datasets_cv${cv}_fold${fold}_seed${seed}.txt"
-            # Testing: python3 -u src/create_datasets.py --cv=0 --fold=0 -seed=1 | tee "logs/datasets_cv0_fold0_seed1.txt  
+            # Testing 1 dataset: python3 -u src/create_datasets.py --cv=1 --fold=2 --seed=4 | tee "logs/datasets_cv1_fold2_seed4.txt"   
         done
     done
     echo " "
