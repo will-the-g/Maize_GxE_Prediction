@@ -6,11 +6,11 @@
 #SBATCH --time=01:00:00
 
 ## configs 
-module purge
-module load gcc/9.3.1 mkl/19.0.5 python/anaconda-3.10
-source /share/apps/bin/conda-3.10.sh
-conda deactivate
-conda activate maize_gxe_prediction
+#module purge
+#module load gcc/9.3.1 mkl/19.0.5 python/anaconda-3.10
+#source /share/apps/bin/conda-3.10.sh
+#conda deactivate
+#conda activate maize_gxe_prediction
 
 
 ## fit E models
@@ -20,7 +20,11 @@ do
     for fold in {0..4}
     do
         echo "Fold=${fold}"
-        python3 -u src/run_e_model.py --cv=${cv} --fold=${fold} --seed=${seed} > "logs/e_model_cv${cv}_fold${fold}_seed${seed}.txt"
+        for seed in {1..10}
+        do
+            echo "Seed=${seed}"
+            python3 -u src/run_e_model.py --cv=${cv} --fold=${fold} --seed=${seed} > "logs/e_model_cv${cv}_fold${fold}_seed${seed}.txt"
+        done
     done
     echo " "
 done

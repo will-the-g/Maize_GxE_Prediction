@@ -108,6 +108,10 @@ if __name__ == '__main__':
     # concat dataframes and bind target
     if args.model == 'G':
         K = pd.concat(kinships, axis=1)
+        xtrain_temp = pd.merge(ytrain, K, on='Hybrid', how='left')
+        print("After merge, before dropna:", xtrain_temp.shape)
+        print("NaNs per column:")
+        print(xtrain_temp.isnull().sum())
         xtrain = pd.merge(ytrain, K, on='Hybrid', how='left').dropna().set_index(['Env', 'Hybrid'])
         xval = pd.merge(yval, K, on='Hybrid', how='left').dropna().set_index(['Env', 'Hybrid'])
         del kinships
@@ -136,8 +140,15 @@ if __name__ == '__main__':
             xtrain = xtrain.drop(lag_cols, axis=1)
             xval = xval.drop(lag_cols, axis=1)
 
+    print("Xtrain Head: \n")
+    print(xtrain.head)
     # bind lagged yield features
-    no_lags_cols = [x for x in xtrain.columns.tolist() if x not in ['Env', 'Hybrid']]
+    no_lags_cols = [x for x in xtrain.columns if x[1] not in ['(Intercept)', 'Env', 'Hybrid']]
+    print(f"Selected {len(no_lags_cols)} columns (excluding 'Env' and 'Hybrid')")
+    print(no_lags_cols[:5])  # peek at first few
+
+    
+    
     if args.lag_features:
         outfile = f'{outfile}_lag_features'
         xtrain_lag = pd.read_csv(OUTPUT_PATH / f'xtrain_fold{args.fold}_seed{args.seed}.csv', usecols=lambda x: 'yield_lag' in x or x in ['Env', 'Hybrid']).set_index(['Env', 'Hybrid'])
@@ -195,6 +206,8 @@ if __name__ == '__main__':
         print('Using svd.')
         print('# Components:', args.n_components)
         svd = TruncatedSVD(n_components=args.n_components, random_state=args.seed)
+        print(xtrain[no_lags_cols].shape)
+        print(xtrain[no_lags_cols].head())
         svd.fit(xtrain[no_lags_cols])  # fit but without lagged yield features
         print('Explained variance:', svd.explained_variance_ratio_.sum())
 

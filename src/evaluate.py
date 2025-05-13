@@ -1,5 +1,5 @@
 import pandas as pd
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import root_mean_squared_error
 
 
 def create_df_eval(xval, yval, ypred):
@@ -15,7 +15,7 @@ def avg_rmse(df_eval, verbose=True):
     rmse_per_group = (
         df_eval
         .groupby('Env')
-        .apply(lambda x: mean_squared_error(x['ytrue'], x['ypred'], squared=False))
+        .apply(lambda x: root_mean_squared_error(x['ytrue'], x['ypred']))
     )
     avg_rmse_ = sum(rmse_per_group) / len(rmse_per_group)
 
