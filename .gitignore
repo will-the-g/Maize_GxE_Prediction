@@ -3,6 +3,7 @@
 notebooks_cluster/
 __pycache__/
 *.csv
+
 *.docx
 *.zip
 *.vcf
@@ -18,3 +19,9 @@ output/cv0/BGLR/*.dat
 output/cv1/BGLR/*.dat
 output/cv2/BGLR/*.dat
 latex
+
+!data/
+!data/Training Data/
+!data/Training Data/sample
+!data/Training Data/sample/*.csv
+!data/Training Data/sample/*.vcf

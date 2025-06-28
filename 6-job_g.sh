@@ -14,6 +14,22 @@
 
 
 ## fit G and G+E models
+#!/bin/bash
+
+#SBATCH --partition=comp01
+#SBATCH --nodes=1
+#SBATCH --tasks-per-node=8
+#SBATCH --time=01:00:00
+
+## configs 
+#module purge
+#module load gcc/9.3.1 mkl/19.0.5 python/anaconda-3.10
+#source /share/apps/bin/conda-3.10.sh
+#conda deactivate
+#conda activate maize_gxe_prediction
+
+
+## fit G and G+E models
 for cv in {0..2}
 do 
     echo "CV=${cv}"
