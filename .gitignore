@@ -15,13 +15,16 @@ __pycache__/
 maize_pruned*
 .Rproj.user
 .Rhistory
+.Rdata
+Rplots.pdf
 output/cv0/BGLR/*.dat
 output/cv1/BGLR/*.dat
 output/cv2/BGLR/*.dat
 latex
 
+
+
 !data/
-!data/Training Data/
-!data/Training Data/sample
-!data/Training Data/sample/*.csv
-!data/Training Data/sample/*.vcf
+!data/Training Data
+!data/Training Data/*.csv
+!data/Training Data/*.vcf

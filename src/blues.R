@@ -17,7 +17,8 @@ envs2021 <- c('COH1_2021', 'DEH1_2021', 'GAH1_2021', 'GAH2_2021', 'GEH1_2021', '
               'MNH1_2021', 'NCH1_2021', 'NEH1_2021', 'NEH2_2021', 'NEH3_2021', 'NYH2_2021', 'NYH3_2021', 'NYS1_2021', 'SCH1_2021', 'TXH1_2021', 'TXH2_2021', 'TXH3_2021',
               'WIH1_2021', 'WIH2_2021', 'WIH3_2021')
 
-envs <- c(envs2019, envs2020, envs2021)
+envs <- c(envs2019)#, envs2020, envs2021)
+
 
 # Initialize storage for results
 all_blues <- data.frame()
