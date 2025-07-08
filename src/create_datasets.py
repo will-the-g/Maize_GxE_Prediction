@@ -223,9 +223,9 @@ if __name__ == '__main__':
     # NA imputing
     for col in [x for x in xtrain.columns if x not in CAT_COLS]:
         mean = xtrain[col].mean()
-        xtrain[col].fillna(mean, inplace=True)
-        xval[col].fillna(mean, inplace=True)
-        xtest[col].fillna(mean, inplace=True)
+        xtrain.fillna({col: mean}, inplace=True)
+        xval.fillna({col: mean}, inplace=True)
+        xtest.fillna({col: mean}, inplace=True)
 
     print('xtrain shape:', xtrain.shape)
     print('xval shape:', xval.shape)

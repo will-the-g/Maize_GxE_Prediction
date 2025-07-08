@@ -28,3 +28,5 @@ latex
 !data/Training Data
 !data/Training Data/*.csv
 !data/Training Data/*.vcf
+!data/Testing Data
+!data/Testing Data/*csv
