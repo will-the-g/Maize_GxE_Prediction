@@ -22,11 +22,22 @@ output/cv1/BGLR/*.dat
 output/cv2/BGLR/*.dat
 latex
 
-
-
 !data/
 !data/Training Data
 !data/Training Data/*.csv
 !data/Training Data/*.vcf
 !data/Testing Data
 !data/Testing Data/*csv
+
+# Pegasus WMS
+.python-version
+.mypy_cache/
+pegasus.properties
+replicas.yml
+sites.yml
+transformations.yml
+workflow.yml
+submit/
+scratch/
+output/logs/
+output/output/
