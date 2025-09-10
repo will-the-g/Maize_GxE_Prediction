@@ -150,4 +150,3 @@ if (debug == FALSE) {
 
 cor(pred_env_hybrid$ytrue, pred_env_hybrid$ypred)
 # plot(pred_env_hybrid$ytrue, pred_env_hybrid$ypred)
-

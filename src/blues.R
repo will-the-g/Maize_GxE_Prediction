@@ -3,7 +3,7 @@ library(lme4)
 library(dplyr)
 
 # Read dataset
-data <- read.csv("data/Training Data/1_Training_Trait_Data_2014_2021.csv")
+data <- read.csv("data/Training_Data/1_Training_Trait_Data_2014_2021.csv")
 
 # Define environments
 envs2019 <- c('DEH1_2019', 'TXH2_2019', 'NCH1_2019', 'SCH1_2019', 'IAH3_2019', 'MNH1_2019', 'IAH2_2019', 'TXH3_2019', 'NYH3_2019', 'ILH1_2019',

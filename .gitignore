@@ -23,11 +23,11 @@ output/cv2/BGLR/*.dat
 latex
 
 !data/
-!data/Training Data
-!data/Training Data/*.csv
-!data/Training Data/*.vcf
-!data/Testing Data
-!data/Testing Data/*csv
+!data/Training_Data
+!data/Training_Data/*.csv
+!data/Training_Data/*.vcf
+!data/Testing_Data
+!data/Testing_Data/*csv
 
 # Pegasus WMS
 .python-version

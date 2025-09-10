@@ -34,8 +34,11 @@ else:
 
 
 def preprocess_g(df, kinship, individuals: list):
-    df.columns = [x[:len(x) // 2] for x in df.columns]  # fix duplicated column names
+    individuals = [x.replace('Hybrid', '') if x.startswith('Hybrid') else x for x in individuals]
+    df.columns = [x[:len(x) // 2].rstrip('_') for x in df.columns]  # fix duplicated column names
     df.index = df.columns
+    #print("Index: \n", df.index)
+    #print("Individuals: \n ", individuals[:20])
     df = df[df.index.isin(individuals)]  # filter rows
     df = df[[col for col in df.columns if col in individuals]]  # filter columns
     df.index.name = 'Hybrid'
@@ -76,11 +79,12 @@ if __name__ == '__main__':
         outfile = f'{outfile}_A'
         if args.model == 'G':
             A = pd.read_csv('output/kinship_additive.txt', sep='\t')
+            #print("A:\n ", A)
             A = preprocess_g(A, 'A', individuals)
+            #print("A2:\n ", A)
             kinships.append(A)
         else:
             kroneckers.append(prepare_gxe('additive'))
-
     if args.D:
         print('Using D matrix.')
         outfile = f'{outfile}_D'
@@ -90,7 +94,6 @@ if __name__ == '__main__':
             kinships.append(D)
         else:
             kroneckers.append(prepare_gxe('dominant'))
-
     if args.E:
         if args.model == 'G':
             print('Using E matrix.')
@@ -106,13 +109,28 @@ if __name__ == '__main__':
         raise Exception('Choose at least one matrix.')
     
     # concat dataframes and bind target
+    ytrain["Hybrid"] = ytrain["Hybrid"].str.replace(r'^Hybrid', '', regex=True)
     if args.model == 'G':
+        
         K = pd.concat(kinships, axis=1)
-        xtrain_temp = pd.merge(ytrain, K, on='Hybrid', how='left')
-        print("After merge, before dropna:", xtrain_temp.shape)
-        print("NaNs per column:")
-        print(xtrain_temp.isnull().sum())
-        xtrain = pd.merge(ytrain, K, on='Hybrid', how='left').dropna().set_index(['Env', 'Hybrid'])
+        print("-------------------------------------------------------1")
+        print("\nYtrain:  \n", ytrain)
+        print("\nK: \n", K)
+        print("-------------------------------------------------------1")
+        
+        merged = pd.merge(ytrain, K, on='Hybrid', how='left')
+        print("After merge - shape:", merged.shape)
+        print("After merge - columns:", merged.columns[:10])
+        print("Missing values per column:", merged.isnull().sum().head(10))
+
+        merged_clean = merged.dropna()
+        print("After dropna - shape:", merged_clean.shape)
+
+        xtrain = merged_clean.set_index(['Env', 'Hybrid'])
+        print("Final xtrain shape:", xtrain.shape)
+        print("-------------------------------------------------------")
+        print("Xtrain: \n", xtrain)
+        print("-------------------------------------------------------")
         xval = pd.merge(yval, K, on='Hybrid', how='left').dropna().set_index(['Env', 'Hybrid'])
         del kinships
         gc.collect()
@@ -126,6 +144,9 @@ if __name__ == '__main__':
 
     # split x, y
     ytrain = xtrain['Yield_Mg_ha']
+    print("-------------------------------------------------------")
+    print("ytrain: ", ytrain)
+    print("-------------------------------------------------------")
     del xtrain['Yield_Mg_ha']
     yval = xval['Yield_Mg_ha']
     del xval['Yield_Mg_ha']
@@ -140,22 +161,28 @@ if __name__ == '__main__':
             xtrain = xtrain.drop(lag_cols, axis=1)
             xval = xval.drop(lag_cols, axis=1)
 
-    print("Xtrain Head: \n")
-    print(xtrain.head)
     # bind lagged yield features
-    no_lags_cols = [x for x in xtrain.columns if x[1] not in ['(Intercept)', 'Env', 'Hybrid']]
-    print(f"Selected {len(no_lags_cols)} columns (excluding 'Env' and 'Hybrid')")
-    print(no_lags_cols[:5])  # peek at first few
-
-    
-    
+    no_lags_cols = [x for x in xtrain.columns.tolist() if x not in ['Env', 'Hybrid']]
     if args.lag_features:
-        outfile = f'{outfile}_lag_features'
         xtrain_lag = pd.read_csv(OUTPUT_PATH / f'xtrain_fold{args.fold}_seed{args.seed}.csv', usecols=lambda x: 'yield_lag' in x or x in ['Env', 'Hybrid']).set_index(['Env', 'Hybrid'])
         xval_lag = pd.read_csv(OUTPUT_PATH / f'xval_fold{args.fold}_seed{args.seed}.csv', usecols=lambda x: 'yield_lag' in x or x in ['Env', 'Hybrid']).set_index(['Env', 'Hybrid'])
+        outfile = f'{outfile}_lag_features'
+        print("-------------------------------------------------------")
+        print("xtrain index before merge:", xtrain.index[:5])
+        print("xtrain_lag index before merge:", xtrain_lag.index[:5])
+        print("xtrain shape before merge:", xtrain.shape)
+        print("xtrain_lag shape before merge:", xtrain_lag.shape)
+
+        # Check for overlap
+        common_indices = xtrain.index.intersection(xtrain_lag.index)
+        print("Number of common indices:", len(common_indices))
+        print("Sample common indices:", common_indices[:5] if len(common_indices) > 0 else "None")
+        print("-------------------------------------------------------")
+
         xtrain = xtrain.merge(xtrain_lag, on=['Env', 'Hybrid'], how='inner').copy()
         xval = xval.merge(xval_lag, on=['Env', 'Hybrid'], how='inner').copy()
     
+    print("no lag cols: \n ", no_lags_cols[:20])
     if args.model == 'GxE':
         if 'Env' in xtrain.columns and 'Hybrid' in xtrain.columns:
             xtrain = xtrain.set_index(['Env', 'Hybrid'])
@@ -206,8 +233,7 @@ if __name__ == '__main__':
         print('Using svd.')
         print('# Components:', args.n_components)
         svd = TruncatedSVD(n_components=args.n_components, random_state=args.seed)
-        print(xtrain[no_lags_cols].shape)
-        print(xtrain[no_lags_cols].head())
+        print("Xtrain no lag: \n", xtrain[no_lags_cols])
         svd.fit(xtrain[no_lags_cols])  # fit but without lagged yield features
         print('Explained variance:', svd.explained_variance_ratio_.sum())
 

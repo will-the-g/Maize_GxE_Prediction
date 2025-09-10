@@ -34,4 +34,3 @@ cat("kinship G ok\n")
 D <- Gmatrix(dt, "Vitezica")
 fwrite(D, "output/kinship_dominant.txt", sep = "\t", quote = F)
 cat("kinship D ok\n")
-
