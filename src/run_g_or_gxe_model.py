@@ -163,10 +163,16 @@ if __name__ == '__main__':
 
     # bind lagged yield features
     no_lags_cols = [x for x in xtrain.columns.tolist() if x not in ['Env', 'Hybrid']]
+    
     if args.lag_features:
         xtrain_lag = pd.read_csv(OUTPUT_PATH / f'xtrain_fold{args.fold}_seed{args.seed}.csv', usecols=lambda x: 'yield_lag' in x or x in ['Env', 'Hybrid']).set_index(['Env', 'Hybrid'])
         xval_lag = pd.read_csv(OUTPUT_PATH / f'xval_fold{args.fold}_seed{args.seed}.csv', usecols=lambda x: 'yield_lag' in x or x in ['Env', 'Hybrid']).set_index(['Env', 'Hybrid'])
         outfile = f'{outfile}_lag_features'
+
+        
+        xtrain_lag.index = xtrain_lag.index.set_levels(
+            xtrain_lag.index.levels[1].str.replace("Hybrid", "", regex=True), level=1
+        )
         print("-------------------------------------------------------")
         print("xtrain index before merge:", xtrain.index[:5])
         print("xtrain_lag index before merge:", xtrain_lag.index[:5])
