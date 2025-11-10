@@ -3,6 +3,7 @@ import argparse
 from pathlib import Path
 
 import pandas as pd
+import numpy as np
 import lightgbm as lgbm
 from sklearn.decomposition import TruncatedSVD
 
@@ -47,6 +48,8 @@ def preprocess_g(df, kinship, individuals: list):
 
 
 def preprocess_kron(df, kinship):
+    print(f"Dataframe: {df.head()}")
+    print(f"Columns: {df.columns}")
     df[['Env', 'Hybrid']] = df['id'].str.split(':', expand=True)
     df = df.drop('id', axis=1).set_index(['Env', 'Hybrid'])
     df.columns = [f'{x}_{kinship}' for x in df.columns]
@@ -57,7 +60,9 @@ def preprocess_kron(df, kinship):
 
 
 def prepare_gxe(kinship):
+    print(f"KINSHIP: {kinship}")
     kron = pd.read_feather(OUTPUT_PATH / f'kronecker_{kinship}.arrow')
+    print(f"KRON: {kron}")
     kron = preprocess_kron(kron, kinship=kinship)
     return kron
 
@@ -69,7 +74,7 @@ if __name__ == '__main__':
     yval = pd.read_csv(OUTPUT_PATH / f'yval_fold{args.fold}_seed{args.seed}.csv')
     individuals = ytrain['Hybrid'].unique().tolist() + yval['Hybrid'].unique().tolist()
     individuals = list(dict.fromkeys(individuals))  # take unique but preserves order (python 3.7+)
-    print('# unique individuals:', len(individuals))
+    yval["Hybrid"] = yval["Hybrid"].str.replace(r'^Hybrid', '', regex=True)
 
     # load kinships or kroneckers
     kinships = []
@@ -79,9 +84,9 @@ if __name__ == '__main__':
         outfile = f'{outfile}_A'
         if args.model == 'G':
             A = pd.read_csv('output/kinship_additive.txt', sep='\t')
-            #print("A:\n ", A)
+            print("A:\n ", A)
             A = preprocess_g(A, 'A', individuals)
-            #print("A2:\n ", A)
+            print("A2:\n ", A)
             kinships.append(A)
         else:
             kroneckers.append(prepare_gxe('additive'))
@@ -113,24 +118,13 @@ if __name__ == '__main__':
     if args.model == 'G':
         
         K = pd.concat(kinships, axis=1)
-        print("-------------------------------------------------------1")
-        print("\nYtrain:  \n", ytrain)
-        print("\nK: \n", K)
-        print("-------------------------------------------------------1")
+
         
         merged = pd.merge(ytrain, K, on='Hybrid', how='left')
-        print("After merge - shape:", merged.shape)
-        print("After merge - columns:", merged.columns[:10])
-        print("Missing values per column:", merged.isnull().sum().head(10))
 
         merged_clean = merged.dropna()
-        print("After dropna - shape:", merged_clean.shape)
 
         xtrain = merged_clean.set_index(['Env', 'Hybrid'])
-        print("Final xtrain shape:", xtrain.shape)
-        print("-------------------------------------------------------")
-        print("Xtrain: \n", xtrain)
-        print("-------------------------------------------------------")
         xval = pd.merge(yval, K, on='Hybrid', how='left').dropna().set_index(['Env', 'Hybrid'])
         del kinships
         gc.collect()
@@ -144,16 +138,18 @@ if __name__ == '__main__':
 
     # split x, y
     ytrain = xtrain['Yield_Mg_ha']
-    print("-------------------------------------------------------")
-    print("ytrain: ", ytrain)
-    print("-------------------------------------------------------")
     del xtrain['Yield_Mg_ha']
     yval = xval['Yield_Mg_ha']
     del xval['Yield_Mg_ha']
     gc.collect()
+    
 
     # include E matrix if requested
     if args.E:
+        Etrain = Etrain.dropna(axis=1)
+        Eval = Eval.dropna(axis=1)
+        Etrain["Hybrid"] = Etrain["Hybrid"].str.replace(r'^Hybrid', '', regex=True)
+        Eval["Hybrid"] = Eval["Hybrid"].str.replace(r'^Hybrid', '', regex=True)
         xtrain = xtrain.merge(Etrain, on=['Env', 'Hybrid'], how='left').copy().set_index(['Env', 'Hybrid'])
         xval = xval.merge(Eval, on=['Env', 'Hybrid'], how='left').copy().set_index(['Env', 'Hybrid'])
         lag_cols = xtrain.filter(regex='_lag', axis=1).columns
@@ -173,28 +169,20 @@ if __name__ == '__main__':
         xtrain_lag.index = xtrain_lag.index.set_levels(
             xtrain_lag.index.levels[1].str.replace("Hybrid", "", regex=True), level=1
         )
-        print("-------------------------------------------------------")
-        print("xtrain index before merge:", xtrain.index[:5])
-        print("xtrain_lag index before merge:", xtrain_lag.index[:5])
-        print("xtrain shape before merge:", xtrain.shape)
-        print("xtrain_lag shape before merge:", xtrain_lag.shape)
-
-        # Check for overlap
-        common_indices = xtrain.index.intersection(xtrain_lag.index)
-        print("Number of common indices:", len(common_indices))
-        print("Sample common indices:", common_indices[:5] if len(common_indices) > 0 else "None")
-        print("-------------------------------------------------------")
+        xval_lag.index = xval_lag.index.set_levels(
+            xval_lag.index.levels[1].str.replace("Hybrid", "", regex=True), level=1
+        )
+       
 
         xtrain = xtrain.merge(xtrain_lag, on=['Env', 'Hybrid'], how='inner').copy()
         xval = xval.merge(xval_lag, on=['Env', 'Hybrid'], how='inner').copy()
     
-    print("no lag cols: \n ", no_lags_cols[:20])
     if args.model == 'GxE':
         if 'Env' in xtrain.columns and 'Hybrid' in xtrain.columns:
             xtrain = xtrain.set_index(['Env', 'Hybrid'])
             xval = xval.set_index(['Env', 'Hybrid'])
 
-    # run model
+
     if not args.svd:
 
         # add factor
@@ -239,8 +227,10 @@ if __name__ == '__main__':
         print('Using svd.')
         print('# Components:', args.n_components)
         svd = TruncatedSVD(n_components=args.n_components, random_state=args.seed)
-        print("Xtrain no lag: \n", xtrain[no_lags_cols])
+        print("Null Values: ", xtrain[no_lags_cols].isna().sum().sum())
         svd.fit(xtrain[no_lags_cols])  # fit but without lagged yield features
+        
+
         print('Explained variance:', svd.explained_variance_ratio_.sum())
 
         # transform from the fitted svd
