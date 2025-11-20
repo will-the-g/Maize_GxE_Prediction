@@ -14,7 +14,7 @@ parser.add_argument('--fold', type=int, choices={0, 1, 2, 3, 4}, required=True)
 parser.add_argument('--seed', type=int, required=True)
 args = parser.parse_args()
 
-OUTPUT_PATH = Path(f'output/cv{args.cv}')
+OUTPUT_PATH = Path(f'cv{args.cv}_')
 TRAIT_PATH = 'data/Training Data/1_Training_Trait_Data_2014_2021.csv'
 TEST_PATH = 'data/Testing Data/1_Submission_Template_2022.csv'
 META_TRAIN_PATH = 'data/Training Data/2_Training_Meta_Data_2014_2021.csv'

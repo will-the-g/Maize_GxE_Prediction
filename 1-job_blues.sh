@@ -6,7 +6,7 @@
 
 set -e
 
-mkdir -p output logs
+#mkdir -p output logs
 
 ## run
-Rscript src/blues.R | tee logs/blues.txt
+Rscript src/blues.R #| tee logs/blues.txt

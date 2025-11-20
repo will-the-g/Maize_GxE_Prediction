@@ -29,7 +29,7 @@ do
         for seed in {1..10}
         do
             echo "Seed=${seed}"
-            python3 -u src/create_datasets.py --cv=${cv} --fold=${fold} --seed=${seed} > "logs/datasets_cv${cv}_fold${fold}_seed${seed}.txt"
+            python3 -u src/create_datasets.py --cv=${cv} --fold=${fold} --seed=${seed} #> "logs/datasets_cv${cv}_fold${fold}_seed${seed}.txt"
             # Testing 1 dataset: python3 -u src/create_datasets.py --cv=1 --fold=2 --seed=4 | tee "logs/datasets_cv1_fold2_seed4.txt"
         done
     done

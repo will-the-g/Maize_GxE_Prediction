@@ -23,10 +23,10 @@ do
         for seed in {1..10}
         do
             echo "SEED=${seed}"
-            python3 -u src/run_g_or_gxe_model.py --cv=${cv} --fold=${fold} --seed=${seed} --model=GxE --A --svd --lag_features | tee "logs/gxe_model_A_svd_cv${cv}_fold${fold}_seed${seed}_lag_features.txt"
+            python3 -u src/run_g_or_gxe_model.py --cv=${cv} --fold=${fold} --seed=${seed} --model=GxE --A --svd --lag_features #| tee "logs/gxe_model_A_svd_cv${cv}_fold${fold}_seed${seed}_lag_features.txt"
             echo '[GxE] A model ok'
 
-            python3 -u src/run_g_or_gxe_model.py --cv=${cv} --fold=${fold} --seed=${seed} --model=GxE --D --svd --lag_features | tee "logs/gxe_model_D_svd_cv${cv}_fold${fold}_seed${seed}_lag_features.txt"
+            python3 -u src/run_g_or_gxe_model.py --cv=${cv} --fold=${fold} --seed=${seed} --model=GxE --D --svd --lag_features #| tee "logs/gxe_model_D_svd_cv${cv}_fold${fold}_seed${seed}_lag_features.txt"
             echo '[GxE] D model ok'
         done
     done

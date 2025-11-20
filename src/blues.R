@@ -17,8 +17,7 @@ envs2021 <- c('COH1_2021', 'DEH1_2021', 'GAH1_2021', 'GAH2_2021', 'GEH1_2021', '
               'MNH1_2021', 'NCH1_2021', 'NEH1_2021', 'NEH2_2021', 'NEH3_2021', 'NYH2_2021', 'NYH3_2021', 'NYS1_2021', 'SCH1_2021', 'TXH1_2021', 'TXH2_2021', 'TXH3_2021',
               'WIH1_2021', 'WIH2_2021', 'WIH3_2021')
 
-envs <- c(envs2019)#, envs2020, envs2021)
-
+envs <- c(envs2019) # , envs2020, envs2021
 
 # Initialize storage for results
 all_blues <- data.frame()
@@ -26,7 +25,6 @@ cvs_h2s <- data.frame()
 
 # Loop through environments
 for (env in envs) {
-  
   cat("Processing environment:", env, "\n")
   
   # Filter for the environment
@@ -36,31 +34,29 @@ for (env in envs) {
   env_data$Hybrid <- as.factor(env_data$Hybrid)
   env_data$Replicate <- as.factor(env_data$Replicate)
   
-  # Check for sufficient data to fit the model
+  # Check for sufficient data
   if (nlevels(env_data$Hybrid) < 2 || nlevels(env_data$Replicate) < 1) {
     cat("Skipping environment due to insufficient levels for Hybrid or Replicate.\n")
     next
   }
   
-  # Fit a linear mixed-effects model
+  # Fit linear mixed-effects model
   model <- lmer(Yield_Mg_ha ~ Hybrid + (1 | Replicate), data = env_data)
   
   # Extract fixed effects (BLUEs)
   blues <- as.data.frame(fixef(model))
-  blues <- data.frame(Hybrid = rownames(blues), predicted.value = blues[,1])
+  blues <- data.frame(Hybrid = rownames(blues), predicted.value = blues[, 1])
   blues$predicted.value <- blues$predicted.value + fixef(model)["(Intercept)"]
-  blues$Env <- env  # Add environment column
-
-  # Append to full BLUEs list
+  blues$Env <- env
+  
   all_blues <- rbind(all_blues, blues)
   
-  # Calculate Coefficient of Variation (CV)
+  # CV and Heritability
   residual_variance <- summary(model)$sigma^2
   mean_yield <- mean(env_data$Yield_Mg_ha, na.rm = TRUE)
   cv <- sqrt(residual_variance) / mean_yield
   cat("CV for", env, ":", cv, "\n")
   
-  # Calculate Heritability (H²)
   var_components <- as.data.frame(VarCorr(model))
   print("Variance components:")
   print(var_components)
@@ -74,7 +70,6 @@ for (env in envs) {
   heritability <- var_hybrid / (var_hybrid + residual_variance)
   cat("Heritability (H²) for", env, ":", heritability, "\n\n")
   
-  # Append CV and H2 to results
   cvs_h2s <- rbind(cvs_h2s, data.frame(Env = env, CV = cv, H2 = heritability))
 }
 
@@ -82,6 +77,6 @@ for (env in envs) {
 all_blues$Env <- as.factor(all_blues$Env)
 cvs_h2s$Env <- as.factor(cvs_h2s$Env)
 
-# Write results to CSV
-write.csv(all_blues[, c('Env', 'Hybrid', 'predicted.value')], 'output/blues.csv', row.names = FALSE)
-write.csv(cvs_h2s, 'output/cvs_h2s.csv', row.names = FALSE)
+# Write results (no subdirectories)
+write.csv(all_blues[, c('Env', 'Hybrid', 'predicted.value')], 'blues.csv', row.names = FALSE)
+write.csv(cvs_h2s, 'cvs_h2s.csv', row.names = FALSE)

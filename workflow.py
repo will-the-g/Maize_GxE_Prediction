@@ -191,8 +191,8 @@ class MaizeGxEWorkflow:
             Job("1-job_blues.sh")
             .add_inputs("data/Training_Data/1_Training_Trait_Data_2014_2021.csv")
             .add_outputs("logs/blues.txt", stage_out=True, register_replica=False)
-            .add_outputs("output/blues.csv", stage_out=True, register_replica=False)
-            .add_outputs("output/cvs_h2s.csv", stage_out=True, register_replica=False)
+            .add_outputs("blues.csv", stage_out=True, register_replica=False)
+            .add_outputs("cvs_h2s.csv", stage_out=True, register_replica=False)
         )
 
         logs = []
@@ -207,20 +207,20 @@ class MaizeGxEWorkflow:
         for cv in range(3):
             for fold in range(5):
                 for seed in range(1, 11):
-                    xtrain.add(f"output/cv{cv}/xtrain_fold{fold}_seed{seed}.csv")
-                    xval.add(f"output/cv{cv}/xval_fold{fold}_seed{seed}.csv")
-                    ytrain.add(f"output/cv{cv}/ytrain_fold{fold}_seed{seed}.csv")
-                    yval.add(f"output/cv{cv}/yval_fold{fold}_seed{seed}.csv")
+                    xtrain.add(f"cv{cv}_xtrain_fold{fold}_seed{seed}.csv")
+                    xval.add(f"cv{cv}_xval_fold{fold}_seed{seed}.csv")
+                    ytrain.add(f"cv{cv}_ytrain_fold{fold}_seed{seed}.csv")
+                    yval.add(f"cv{cv}_yval_fold{fold}_seed{seed}.csv")
                     logs.append(f"logs/datasets_cv${cv}_fold${fold}_seed${seed}.txt")
 
                     feat_imp_e_model_fold.add(
-                        f"output/cv{cv}/feat_imp_e_model_fold{fold}_seed{seed}.csv"
+                        f"cv{cv}_feat_imp_e_model_fold{fold}_seed{seed}.csv"
                     )
                     oof_e_model_fold.add(
-                        f"output/cv{cv}/oof_e_model_fold{fold}_seed{seed}.csv"
+                        f"cv{cv}_oof_e_model_fold{fold}_seed{seed}.csv"
                     )
                     pred_train_e_model_fold.add(
-                        f"output/cv{cv}/pred_train_e_model_fold{fold}_seed{seed}.csv"
+                        f"cv{cv}_pred_train_e_model_fold{fold}_seed{seed}.csv"
                     )
                     logs_e_model_cv.add(
                         f"logs/e_model_cv{cv}_fold{fold}_seed{seed}.txt"
@@ -228,7 +228,7 @@ class MaizeGxEWorkflow:
 
         job_datasets = (
             Job("2-job_datasets.sh")
-            .add_inputs("output/blues.csv")
+            .add_inputs("blues.csv")
             .add_inputs("data/Training_Data/1_Training_Trait_Data_2014_2021.csv")
             .add_inputs("data/Training_Data/2_Training_Meta_Data_2014_2021.csv")
             .add_inputs("data/Training_Data/3_Training_Soil_Data_2015_2021.csv")
@@ -253,34 +253,34 @@ class MaizeGxEWorkflow:
             .add_inputs("data/Training_Data/5_Genotype_Data_All_2014_2025_Hybrids.vcf")
             .add_outputs("logs/individuals.txt", stage_out=True, register_replica=False)
             .add_outputs(
-                "output/individuals.csv", stage_out=True, register_replica=False
+                "individuals.csv", stage_out=True, register_replica=False
             )
             .add_outputs(
-                "output/maize_indiv.recode.vcf", stage_out=True, register_replica=False
+                "maize_indiv.recode.vcf", stage_out=True, register_replica=False
             )
             .add_outputs(
-                "output/maize_maf001.recode.vcf", stage_out=True, register_replica=False
+                "maize_maf001.recode.vcf", stage_out=True, register_replica=False
             )
             .add_outputs(
-                "output/maize_pruned.prune.in", stage_out=True, register_replica=False
+                "maize_pruned.prune.in", stage_out=True, register_replica=False
             )
             .add_outputs(
-                "output/maize_pruned.prune.out", stage_out=True, register_replica=False
+                "maize_pruned.prune.out", stage_out=True, register_replica=False
             )
             .add_outputs(
-                "output/maize_pruned.nosex", stage_out=True, register_replica=False
+                "maize_pruned.nosex", stage_out=True, register_replica=False
             )
             .add_outputs(
-                "output/maize_pruned.vcf", stage_out=True, register_replica=False
+                "maize_pruned.vcf", stage_out=True, register_replica=False
             )
             .add_outputs(
-                "output/kinship_additive.txt", stage_out=True, register_replica=False
+                "kinship_additive.txt", stage_out=True, register_replica=False
             )
             .add_outputs(
-                "output/kinship_dominant.txt", stage_out=True, register_replica=False
+                "kinship_dominant.txt", stage_out=True, register_replica=False
             )
             .add_outputs(
-                "output/maize_pruned.log", stage_out=True, register_replica=False
+                "maize_pruned.log", stage_out=True, register_replica=False
             )
             .add_outputs("logs/kinships.txt", stage_out=True, register_replica=False)
         )
@@ -293,7 +293,7 @@ class MaizeGxEWorkflow:
             .add_inputs(*yval)
             .add_inputs(
                 *[
-                    f"output/kinship_{kinship}.txt"
+                    f"kinship_{kinship}.txt"
                     for kinship in ("additive", "dominant")
                 ]
             )
@@ -308,7 +308,7 @@ class MaizeGxEWorkflow:
             )
             .add_outputs(
                 *[
-                    f"output/cv{cv}/kronecker_{kinship}.arrow"
+                    f"cv{cv}_kronecker_{kinship}.arrow"
                     for cv in range(3)
                     for kinship in ("additive", "dominant")
                 ],

@@ -1,4 +1,5 @@
 library(data.table)
+library(arrow)  # for write_feather
 
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) == 0) {
@@ -10,19 +11,22 @@ if (length(args) == 0) {
   debug <- as.logical(args[2])
   kinship_type <- args[3]
 }
-kinship_path <- paste0("output/kinship_", kinship_type, ".txt")
-outfile <- paste0("output/cv", cv, "/kronecker_", kinship_type, ".arrow")
+
+# paths now in main directory
+kinship_path <- paste0("kinship_", kinship_type, ".txt")
+outfile <- paste0("kronecker_", kinship_type, "_cv", cv, ".arrow")
+
 cat("Debug mode:", debug, "\n")
 cat("Using", kinship_type, "matrix\n")
 
-# read files
+# read training/validation features from main folder
 xtrain <- data.frame()
-for (file in list.files('output/cv0', pattern = 'xtrain_fold*')) {
-  xtrain <- rbind(xtrain, fread(paste0('output/cv', cv, '/', file), data.table = F))
+for (file in list.files('.', pattern = paste0('xtrain_fold.*_cv', cv, '.*\\.csv$'))) {
+  xtrain <- rbind(xtrain, fread(file, data.table = FALSE))
 }
 xval <- data.frame()
-for (file in list.files('output/cv0', pattern = 'xval_fold*')) {
-  xval <- rbind(xval, fread(paste0('output/cv', cv, '/', file), data.table = F))
+for (file in list.files('.', pattern = paste0('xval_fold.*_cv', cv, '.*\\.csv$'))) {
+  xval <- rbind(xval, fread(file, data.table = FALSE))
 }
 
 # bind files and aggregate
@@ -36,14 +40,14 @@ x$Group.1 <- NULL
 x$Env <- NULL
 x <- as.matrix(x)
 
-# read phenotypes
+# read phenotypes from main folder
 ytrain <- data.frame()
-for (file in list.files('output/cv0', pattern = 'ytrain_fold*')) {
-  ytrain <- rbind(ytrain, fread(paste0('output/cv', cv, '/', file), data.table = F))
+for (file in list.files('.', pattern = paste0('ytrain_fold.*_cv', cv, '.*\\.csv$'))) {
+  ytrain <- rbind(ytrain, fread(file, data.table = FALSE))
 }
 yval <- data.frame()
-for (file in list.files('output/cv0', pattern = 'yval_fold*')) {
-  yval <- rbind(yval, fread(paste0('output/cv', cv, '/', file), data.table = F))
+for (file in list.files('.', pattern = paste0('yval_fold.*_cv', cv, '.*\\.csv$'))) {
+  yval <- rbind(yval, fread(file, data.table = FALSE))
 }
 
 # get unique combinations
@@ -51,43 +55,34 @@ y <- rbind(ytrain, yval)
 y$Hybrid <- gsub("^Hybrid", "", y$Hybrid)
 y <- y[y$Hybrid != "(Intercept)", ]
 hybrids <- unique(y$Hybrid)
-env_hybrid <- unique(interaction(y$Env, y$Hybrid, sep = ':', drop = T))
+env_hybrid <- unique(interaction(y$Env, y$Hybrid, sep = ':', drop = TRUE))
 rm(y); rm(ytrain); rm(yval); gc()
 
 # load kinship
-if (debug == FALSE) {
-  kinship <- fread(kinship_path, data.table = F)
+if (!debug) {
+  kinship <- fread(kinship_path, data.table = FALSE)
 } else {
-  kinship <- fread(kinship_path, data.table = F, nrows = 100)
+  kinship <- fread(kinship_path, data.table = FALSE, nrows = 100)
 }
 
 # ============= MINIMAL DIAGNOSTIC OUTPUT =============
 cat("\n==================== DIAGNOSTIC CHECK ====================\n")
-
-# 1. Raw kinship column names (BEFORE processing)
 cat("\n[1] KINSHIP FILE - First 5 column names (RAW, before any processing):\n")
 print(colnames(kinship)[1:5])
 
-# 2. Process kinship as in original code
 colnames(kinship) <- substr(colnames(kinship), 1, nchar(colnames(kinship)) / 2)
 kinship <- as.matrix(kinship)
 rownames(kinship) <- colnames(kinship)[1:nrow(kinship)]
 
-# 3. Kinship IDs after processing
 cat("\n[2] KINSHIP MATRIX - First 10 row/column names (AFTER processing):\n")
 print(head(rownames(kinship), 10))
-
 cat("\n[3] KINSHIP MATRIX - Last 10 row/column names:\n")
 print(tail(rownames(kinship), 10))
-
-# 4. Hybrid IDs from phenotypes
 cat("\n[4] PHENOTYPE FILE - First 10 unique hybrid IDs:\n")
 print(head(hybrids, 10))
-
 cat("\n[5] PHENOTYPE FILE - Last 10 unique hybrid IDs:\n")
 print(tail(hybrids, 10))
 
-# 5. The critical check: overlap
 overlap <- sum(hybrids %in% rownames(kinship))
 cat("\n[6] OVERLAP CHECK:\n")
 cat("    Total unique hybrids in phenotypes:", length(hybrids), "\n")
@@ -95,43 +90,36 @@ cat("    Total IDs in kinship matrix:", nrow(kinship), "\n")
 cat("    Number of hybrids found in kinship: ", overlap, "\n")
 cat("    Percentage overlap: ", round(100 * overlap / length(hybrids), 1), "%\n")
 
-# 6. Show examples of matches (if any)
 if (overlap > 0) {
   matching_hybrids <- hybrids[hybrids %in% rownames(kinship)]
   cat("\n[7] EXAMPLES OF MATCHING IDs (first 5):\n")
   print(head(matching_hybrids, 5))
 }
 
-# 7. Show examples of NON-matches (if any)
 if (overlap < length(hybrids)) {
   non_matching <- hybrids[!(hybrids %in% rownames(kinship))]
   cat("\n[8] EXAMPLES OF NON-MATCHING HYBRID IDs (first 10):\n")
   print(head(non_matching, 10))
 }
 
-# 8. Check for simple formatting differences
 cat("\n[9] QUICK FORMAT CHECKS:\n")
 cat("    Kinship IDs contain underscore '_':", sum(grepl("_", rownames(kinship))) > 0, "\n")
-cat("    Kinship IDs contain 'x':", sum(grepl("x", rownames(kinship), fixed=TRUE)) > 0, "\n")
-cat("    Kinship IDs contain dash '-':", sum(grepl("-", rownames(kinship), fixed=TRUE)) > 0, "\n")
+cat("    Kinship IDs contain 'x':", sum(grepl("x", rownames(kinship), fixed = TRUE)) > 0, "\n")
+cat("    Kinship IDs contain dash '-':", sum(grepl("-", rownames(kinship), fixed = TRUE)) > 0, "\n")
 cat("    Hybrid IDs contain underscore '_':", sum(grepl("_", hybrids)) > 0, "\n")
-cat("    Hybrid IDs contain 'x':", sum(grepl("x", hybrids, fixed=TRUE)) > 0, "\n")
-cat("    Hybrid IDs contain dash '-':", sum(grepl("-", hybrids, fixed=TRUE)) > 0, "\n")
-
+cat("    Hybrid IDs contain 'x':", sum(grepl("x", hybrids, fixed = TRUE)) > 0, "\n")
+cat("    Hybrid IDs contain dash '-':", sum(grepl("-", hybrids, fixed = TRUE)) > 0, "\n")
 cat("\n==========================================================\n\n")
 # ============= END DIAGNOSTIC OUTPUT =============
 
-# Continue with original code
+# continue original code
 kinship <- kinship[rownames(kinship) %in% hybrids, colnames(kinship) %in% hybrids]
 cat("kinship dim:", dim(kinship), "\n")
-#
-# Remove completely empty columns
-x <- x[, colSums(is.na(x)) < nrow(x)]
 
-# Then remove rows with any remaining NAs
+x <- x[, colSums(is.na(x)) < nrow(x)]
 x <- x[complete.cases(x), ]
 
-K <- kronecker(x, kinship, make.dimnames = T)
+K <- kronecker(x, kinship, make.dimnames = TRUE)
 rm(x); rm(kinship); gc()
 cat("K dim:", dim(K), "\n")
 
@@ -146,19 +134,15 @@ cat("K size:", format(object.size(K), units = "MB"), "\n")
 cat("Number of rows in K:", nrow(K), "\n")
 
 cat("[STEP 1] Creating data frame...\n")
-flush.console()  # Force output to appear immediately
-
+flush.console()
 K_df <- data.frame(id = rownames(K), K)
 
 cat("[STEP 2] Data frame created. Writing to feather...\n")
 flush.console()
-
 arrow::write_feather(K_df, outfile)
 
 cat("[STEP 3] Feather write complete!\n")
 flush.console()
-
 rm(K_df); rm(K); gc()
-
 cat("Writing file:", outfile, "\n\n")
 Sys.sleep(5)
