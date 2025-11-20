@@ -16,14 +16,14 @@ set -e
 
 ## create a list of individuals to be used for VCF file
 # Original: python3 -u src/create_individuals.py | tee "logs/individuals.txt"
-python3 -u src/create_individuals.py > individuals.txt
+python3 -u create_individuals.py > individuals.txt
 
 # formats the csv properly for filtering
 # Original: tail -n +2 output/individuals.csv | sed 's/^Hybrid//' > output/tmp.csv && mv output/tmp.csv output/individuals.csv
 tail -n +2 individuals.csv | sed 's/^Hybrid//' > tmp.csv && mv tmp.csv individuals.csv
 
 ## filter VCF and create kinships matrices
-vcftools --vcf "data/Training_Data/5_Genotype_Data_All_2014_2025_Hybrids.vcf" \
+vcftools --vcf "5_Genotype_Data_All_2014_2025_Hybrids.vcf" \
   --keep 'individuals.csv' \
   --recode --recode-INFO-all --out maize_indiv
 
@@ -38,4 +38,4 @@ plink --vcf maize_maf001.recode.vcf --double-id --extract maize_pruned.prune.in 
 
 # Runs kinship.R file
 # Original: Rscript src/kinship.R > "logs/kinships.txt"
-Rscript src/kinship.R > kinships.txt
+Rscript kinship.R > kinships.txt

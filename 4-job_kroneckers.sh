@@ -23,7 +23,7 @@ do
     echo "CV=${cv}"
     for kinship in additive dominant
     do
-        Rscript src/kronecker.R $cv $debug $kinship #| tee "logs/kronecker_${kinship}_cv${cv}.txt" &&
+        Rscript kronecker.R $cv $debug $kinship #| tee "logs/kronecker_${kinship}_cv${cv}.txt" &&
         echo "[Kronecker] ${kinship}"
     done
 done

@@ -27,7 +27,7 @@ do
         for seed in {1..10}
         do
             echo "Seed=${seed}"
-            python3 -u src/run_e_model.py --cv=${cv} --fold=${fold} --seed=${seed} #> "logs/e_model_cv${cv}_fold${fold}_seed${seed}.txt"
+            python3 -u run_e_model.py --cv=${cv} --fold=${fold} --seed=${seed} #> "logs/e_model_cv${cv}_fold${fold}_seed${seed}.txt"
         done
     done
     echo " "
