@@ -9,38 +9,42 @@ from evaluate import create_df_eval, avg_rmse, feat_imp
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--cv', type=int, choices={0, 1, 2}, required=True)
-parser.add_argument('--fold', type=int, choices={0, 1, 2, 3, 4}, required=True)
-parser.add_argument('--seed', type=int, required=True)
+parser.add_argument("--cv", type=int, choices={0, 1, 2}, required=True)
+parser.add_argument("--fold", type=int, choices={0, 1, 2, 3, 4}, required=True)
+parser.add_argument("--seed", type=int, required=True)
 args = parser.parse_args()
 
-OUTPUT_PATH = Path(f'cv{args.cv}_')
-TRAIT_PATH = 'data/Training Data/1_Training_Trait_Data_2014_2021.csv'
-TEST_PATH = 'data/Testing Data/1_Submission_Template_2022.csv'
-META_TRAIN_PATH = 'data/Training Data/2_Training_Meta_Data_2014_2021.csv'
-META_TEST_PATH = 'data/Testing Data/2_Testing_Meta_Data_2022.csv'
+OUTPUT_PATH = Path(f"cv{args.cv}_")
+TRAIT_PATH = "1_Training_Trait_Data_2014_2021.csv"
+TEST_PATH = "1_Submission_Template_2022.csv"
+META_TRAIN_PATH = "2_Training_Meta_Data_2014_2021.csv"
+META_TEST_PATH = "2_Testing_Meta_Data_2022.csv"
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # df_sub = process_test_data(TEST_PATH).reset_index()[['Env', 'Hybrid']]
 
-    xtrain = pd.read_csv(OUTPUT_PATH / f'xtrain_fold{args.fold}_seed{args.seed}.csv')
-    xval = pd.read_csv(OUTPUT_PATH / f'xval_fold{args.fold}_seed{args.seed}.csv')
+    xtrain = pd.read_csv(OUTPUT_PATH / f"xtrain_fold{args.fold}_seed{args.seed}.csv")
+    xval = pd.read_csv(OUTPUT_PATH / f"xval_fold{args.fold}_seed{args.seed}.csv")
     # xtest = pd.read_csv(OUTPUT_PATH / 'xtest.csv')
-    ytrain = pd.read_csv(OUTPUT_PATH / f'ytrain_fold{args.fold}_seed{args.seed}.csv').set_index(['Env', 'Hybrid'])['Yield_Mg_ha']
-    yval = pd.read_csv(OUTPUT_PATH / f'yval_fold{args.fold}_seed{args.seed}.csv').set_index(['Env', 'Hybrid'])['Yield_Mg_ha']
+    ytrain = pd.read_csv(
+        OUTPUT_PATH / f"ytrain_fold{args.fold}_seed{args.seed}.csv"
+    ).set_index(["Env", "Hybrid"])["Yield_Mg_ha"]
+    yval = pd.read_csv(
+        OUTPUT_PATH / f"yval_fold{args.fold}_seed{args.seed}.csv"
+    ).set_index(["Env", "Hybrid"])["Yield_Mg_ha"]
 
     # add factor
     xtrain = create_field_location(xtrain)
-    xtrain['Field_Location'] = xtrain['Field_Location'].astype('category')
+    xtrain["Field_Location"] = xtrain["Field_Location"].astype("category")
     xval = create_field_location(xval)
-    xval['Field_Location'] = xval['Field_Location'].astype('category')
+    xval["Field_Location"] = xval["Field_Location"].astype("category")
     # xtest = create_field_location(xtest)
     # xtest['Field_Location'] = xtest['Field_Location'].astype('category')
 
     # set index
-    xtrain = xtrain.set_index(['Env', 'Hybrid'])
-    xval = xval.set_index(['Env', 'Hybrid'])
+    xtrain = xtrain.set_index(["Env", "Hybrid"])
+    xval = xval.set_index(["Env", "Hybrid"])
     # xtest = xtest.set_index(['Env', 'Hybrid'])
 
     # fit
@@ -49,7 +53,10 @@ if __name__ == '__main__':
 
     # feature importance
     df_feat_imp = feat_imp(model)
-    df_feat_imp.to_csv(OUTPUT_PATH / f'feat_imp_e_model_fold{args.fold}_seed{args.seed}.csv', index=False)
+    df_feat_imp.to_csv(
+        OUTPUT_PATH / f"feat_imp_e_model_fold{args.fold}_seed{args.seed}.csv",
+        index=False,
+    )
 
     # predict
     ypred_train = model.predict(xtrain)
@@ -61,12 +68,13 @@ if __name__ == '__main__':
     _ = avg_rmse(df_eval)
 
     # write
-    outfile = OUTPUT_PATH / f'oof_e_model_fold{args.fold}_seed{args.seed}.csv'
-    print('Writing:', outfile, '\n')
+    outfile = OUTPUT_PATH / f"oof_e_model_fold{args.fold}_seed{args.seed}.csv"
+    print("Writing:", outfile, "\n")
     df_eval.to_csv(outfile, index=False)
-    df_eval_train.to_csv(OUTPUT_PATH / f'pred_train_e_model_fold{args.fold}_seed{args.seed}.csv')
+    df_eval_train.to_csv(
+        OUTPUT_PATH / f"pred_train_e_model_fold{args.fold}_seed{args.seed}.csv"
+    )
 
     # predict on test
     # df_sub['Yield_Mg_ha'] = model.predict(xtest)
     # df_sub.to_csv('output/submission.csv', index=False)
-    

@@ -105,7 +105,9 @@ class MaizeGxEWorkflow:
             is_stageable=True,
         )
         self.tc.add_transformations(tc)
-        transforms["1-job_blues.sh"].add_requirement(tc)
+        transforms["1-job_blues.sh"].add_requirement(tc).add_pegasus_profile(
+            memory="1024 MB"
+        )
 
         tc = Transformation(
             "create_datasets.py",
