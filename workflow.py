@@ -63,18 +63,18 @@ class MaizeGxEWorkflow:
             Site(exec_site_name, arch=Arch.X86_64)
             .add_condor_profile(universe="vanilla")
             .add_pegasus_profile(style="condor")
-            .add_pegasus_profiles(data_configuration="nonsharedfs")
-            .add_pegasus_profiles(auxillary_local="true")
-            .add_directories(
-                Directory(
-                    Directory.SHARED_SCRATCH, shared_scratch_dir
-                ).add_file_servers(
-                    FileServer("file://" + shared_scratch_dir, Operation.ALL)
-                ),
-                Directory(Directory.LOCAL_STORAGE, local_storage_dir).add_file_servers(
-                    FileServer("file://" + local_storage_dir, Operation.ALL)
-                ),
-            )
+            .add_pegasus_profiles(data_configuration="condorio")
+            # .add_pegasus_profiles(auxillary_local="true")
+            # .add_directories(
+            #     Directory(
+            #         Directory.SHARED_SCRATCH, shared_scratch_dir
+            #     ).add_file_servers(
+            #         FileServer("file://" + shared_scratch_dir, Operation.ALL)
+            #     ),
+            #     Directory(Directory.LOCAL_STORAGE, local_storage_dir).add_file_servers(
+            #         FileServer("file://" + local_storage_dir, Operation.ALL)
+            #     ),
+            # )
         )
         self.sc.add_sites(local, exec_site)
 
@@ -99,16 +99,18 @@ class MaizeGxEWorkflow:
             self.tc.add_transformations(tc)
 
         tc = Transformation(
-            "src/blues.R",
+            "blues.R",
             site="local",
             pfn=(file.parent / "src/blues.R").resolve(),
             is_stageable=True,
         )
         self.tc.add_transformations(tc)
-        transforms["1-job_blues.sh"].add_requirement(tc)
+        transforms["1-job_blues.sh"].add_requirement(tc).add_pegasus_profile(
+            memory="1024 MB"
+        )
 
         tc = Transformation(
-            "src/create_datasets.py",
+            "create_datasets.py",
             site="local",
             pfn=(file.parent / "src/create_datasets.py").resolve(),
             is_stageable=True,
@@ -117,7 +119,7 @@ class MaizeGxEWorkflow:
         transforms["2-job_datasets.sh"].add_requirement(tc)
 
         tc = Transformation(
-            "src/preprocessing.py",
+            "preprocessing.py",
             site="local",
             pfn=(file.parent / "src/preprocessing.py").resolve(),
             is_stageable=True,
@@ -127,7 +129,7 @@ class MaizeGxEWorkflow:
         transforms["5-job_e.sh"].add_requirement(tc)
 
         tc = Transformation(
-            "src/create_individuals.py",
+            "create_individuals.py",
             site="local",
             pfn=(file.parent / "src/create_individuals.py").resolve(),
             is_stageable=True,
@@ -136,7 +138,7 @@ class MaizeGxEWorkflow:
         transforms["3-job_genomics.sh"].add_requirement(tc)
 
         tc = Transformation(
-            "src/kinship.R",
+            "kinship.R",
             site="local",
             pfn=(file.parent / "src/kinship.R").resolve(),
             is_stageable=True,
@@ -145,7 +147,7 @@ class MaizeGxEWorkflow:
         transforms["3-job_genomics.sh"].add_requirement(tc)
 
         tc = Transformation(
-            "src/kronecker.R",
+            "kronecker.R",
             site="local",
             pfn=(file.parent / "src/kronecker.R").resolve(),
             is_stageable=True,
@@ -154,7 +156,7 @@ class MaizeGxEWorkflow:
         transforms["4-job_kroneckers.sh"].add_requirement(tc)
 
         tc = Transformation(
-            "src/run_e_model.py",
+            "run_e_model.py",
             site="local",
             pfn=(file.parent / "src/run_e_model.py").resolve(),
             is_stageable=True,
@@ -162,7 +164,7 @@ class MaizeGxEWorkflow:
         self.tc.add_transformations(tc)
         transforms["5-job_e.sh"].add_requirement(tc)
         tc = Transformation(
-            "src/evaluate.py",
+            "evaluate.py",
             site="local",
             pfn=(file.parent / "src/evaluate.py").resolve(),
             is_stageable=True,
@@ -175,13 +177,9 @@ class MaizeGxEWorkflow:
         self.rc = ReplicaCatalog()
 
         for file in Path(data_dir).iterdir():
-            self.rc.add_replica(
-                "local", f"data/Training_Data/{file.name}", file.resolve()
-            )
+            self.rc.add_replica("local", file.name, file.resolve())
         for file in (Path(data_dir).parent / "Testing_Data").iterdir():
-            self.rc.add_replica(
-                "local", f"data/Testing_Data/{file.name}", file.resolve()
-            )
+            self.rc.add_replica("local", file.name, file.resolve())
 
     # --- Create Workflow -----------------------------------------------------
     def create_workflow(self):
@@ -189,13 +187,13 @@ class MaizeGxEWorkflow:
 
         job_blues = (
             Job("1-job_blues.sh")
-            .add_inputs("data/Training_Data/1_Training_Trait_Data_2014_2021.csv")
-            .add_outputs("logs/blues.txt", stage_out=True, register_replica=False)
+            .add_inputs("1_Training_Trait_Data_2014_2021.csv")
+            # .add_outputs("logs/blues.txt", stage_out=True, register_replica=False)
             .add_outputs("blues.csv", stage_out=True, register_replica=False)
             .add_outputs("cvs_h2s.csv", stage_out=True, register_replica=False)
         )
 
-        logs = []
+        # logs = []
         xtrain = set()
         xval = set()
         ytrain = set()
@@ -203,7 +201,7 @@ class MaizeGxEWorkflow:
         feat_imp_e_model_fold = set()
         oof_e_model_fold = set()
         pred_train_e_model_fold = set()
-        logs_e_model_cv = set()
+        # logs_e_model_cv = set()
         for cv in range(3):
             for fold in range(5):
                 for seed in range(1, 11):
@@ -211,7 +209,7 @@ class MaizeGxEWorkflow:
                     xval.add(f"cv{cv}_xval_fold{fold}_seed{seed}.csv")
                     ytrain.add(f"cv{cv}_ytrain_fold{fold}_seed{seed}.csv")
                     yval.add(f"cv{cv}_yval_fold{fold}_seed{seed}.csv")
-                    logs.append(f"logs/datasets_cv${cv}_fold${fold}_seed${seed}.txt")
+                    # logs.append(f"logs/datasets_cv${cv}_fold${fold}_seed${seed}.txt")
 
                     feat_imp_e_model_fold.add(
                         f"cv{cv}_feat_imp_e_model_fold{fold}_seed{seed}.csv"
@@ -222,24 +220,24 @@ class MaizeGxEWorkflow:
                     pred_train_e_model_fold.add(
                         f"cv{cv}_pred_train_e_model_fold{fold}_seed{seed}.csv"
                     )
-                    logs_e_model_cv.add(
-                        f"logs/e_model_cv{cv}_fold{fold}_seed{seed}.txt"
-                    )
+                    # logs_e_model_cv.add(
+                    #     f"logs/e_model_cv{cv}_fold{fold}_seed{seed}.txt"
+                    # )
 
         job_datasets = (
             Job("2-job_datasets.sh")
             .add_inputs("blues.csv")
-            .add_inputs("data/Training_Data/1_Training_Trait_Data_2014_2021.csv")
-            .add_inputs("data/Training_Data/2_Training_Meta_Data_2014_2021.csv")
-            .add_inputs("data/Training_Data/3_Training_Soil_Data_2015_2021.csv")
-            .add_inputs("data/Training_Data/4_Training_Weather_Data_2014_2021.csv")
-            .add_inputs("data/Training_Data/6_Training_EC_Data_2014_2021.csv")
-            .add_inputs("data/Training_Data/All_hybrid_names_info.csv")
-            .add_inputs("data/Testing_Data/1_Submission_Template_2022.csv")
-            .add_inputs("data/Testing_Data/2_Testing_Meta_Data_2022.csv")
-            .add_inputs("data/Testing_Data/3_Testing_Soil_Data_2022.csv")
-            .add_inputs("data/Testing_Data/4_Testing_Weather_Data_2022.csv")
-            .add_inputs("data/Testing_Data/6_Testing_EC_Data_2022.csv")
+            .add_inputs("1_Training_Trait_Data_2014_2021.csv")
+            .add_inputs("2_Training_Meta_Data_2014_2021.csv")
+            .add_inputs("3_Training_Soil_Data_2015_2021.csv")
+            .add_inputs("4_Training_Weather_Data_2014_2021.csv")
+            .add_inputs("6_Training_EC_Data_2014_2021.csv")
+            .add_inputs("All_hybrid_names_info.csv")
+            .add_inputs("1_Submission_Template_2022.csv")
+            .add_inputs("2_Testing_Meta_Data_2022.csv")
+            .add_inputs("3_Testing_Soil_Data_2022.csv")
+            .add_inputs("4_Testing_Weather_Data_2022.csv")
+            .add_inputs("6_Testing_EC_Data_2022.csv")
             .add_outputs(*xtrain, stage_out=True, register_replica=False)
             .add_outputs(*xval, stage_out=True, register_replica=False)
             .add_outputs(*ytrain, stage_out=True, register_replica=False)
@@ -250,11 +248,9 @@ class MaizeGxEWorkflow:
             Job("3-job_genomics.sh")
             .add_inputs(*ytrain)
             .add_inputs(*yval)
-            .add_inputs("data/Training_Data/5_Genotype_Data_All_2014_2025_Hybrids.vcf")
-            .add_outputs("logs/individuals.txt", stage_out=True, register_replica=False)
-            .add_outputs(
-                "individuals.csv", stage_out=True, register_replica=False
-            )
+            .add_inputs("5_Genotype_Data_All_2014_2025_Hybrids.vcf")
+            .add_outputs("individuals.txt", stage_out=True, register_replica=False)
+            .add_outputs("individuals.csv", stage_out=True, register_replica=False)
             .add_outputs(
                 "maize_indiv.recode.vcf", stage_out=True, register_replica=False
             )
@@ -267,22 +263,12 @@ class MaizeGxEWorkflow:
             .add_outputs(
                 "maize_pruned.prune.out", stage_out=True, register_replica=False
             )
-            .add_outputs(
-                "maize_pruned.nosex", stage_out=True, register_replica=False
-            )
-            .add_outputs(
-                "maize_pruned.vcf", stage_out=True, register_replica=False
-            )
-            .add_outputs(
-                "kinship_additive.txt", stage_out=True, register_replica=False
-            )
-            .add_outputs(
-                "kinship_dominant.txt", stage_out=True, register_replica=False
-            )
-            .add_outputs(
-                "maize_pruned.log", stage_out=True, register_replica=False
-            )
-            .add_outputs("logs/kinships.txt", stage_out=True, register_replica=False)
+            .add_outputs("maize_pruned.nosex", stage_out=True, register_replica=False)
+            .add_outputs("maize_pruned.vcf", stage_out=True, register_replica=False)
+            .add_outputs("kinship_additive.txt", stage_out=True, register_replica=False)
+            .add_outputs("kinship_dominant.txt", stage_out=True, register_replica=False)
+            .add_outputs("maize_pruned.log", stage_out=True, register_replica=False)
+            .add_outputs("kinships.txt", stage_out=True, register_replica=False)
         )
 
         job_kroneckers = (
@@ -292,14 +278,11 @@ class MaizeGxEWorkflow:
             .add_inputs(*ytrain)
             .add_inputs(*yval)
             .add_inputs(
-                *[
-                    f"kinship_{kinship}.txt"
-                    for kinship in ("additive", "dominant")
-                ]
+                *[f"kinship_{kinship}.txt" for kinship in ("additive", "dominant")]
             )
             .add_outputs(
                 *[
-                    f"logs/kronecker_{kinship}_cv{cv}.txt"
+                    f"kronecker_{kinship}_cv{cv}.txt"
                     for cv in range(3)
                     for kinship in ("additive", "dominant")
                 ],
@@ -324,12 +307,12 @@ class MaizeGxEWorkflow:
             .add_inputs(*ytrain)
             .add_inputs(*yval)
             .add_inputs(
-                "data/Training_Data/1_Training_Trait_Data_2014_2021.csv",
-                "data/Testing_Data/1_Submission_Template_2022.csv",
-                "data/Training_Data/2_Training_Meta_Data_2014_2021.csv",
-                "data/Testing_Data/2_Testing_Meta_Data_2022.csv",
+                "1_Training_Trait_Data_2014_2021.csv",
+                "1_Submission_Template_2022.csv",
+                "2_Training_Meta_Data_2014_2021.csv",
+                "2_Testing_Meta_Data_2022.csv",
             )
-            .add_outputs(*logs_e_model_cv, stage_out=True, register_replica=False)
+            # .add_outputs(*logs_e_model_cv, stage_out=True, register_replica=False)
             .add_outputs(*feat_imp_e_model_fold, stage_out=True, register_replica=False)
             .add_outputs(*oof_e_model_fold, stage_out=True, register_replica=False)
             .add_outputs(

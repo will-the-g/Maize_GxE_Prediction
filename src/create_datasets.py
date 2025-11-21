@@ -16,44 +16,49 @@ from preprocessing import (
     feat_eng_soil,
     feat_eng_target,
     extract_target,
-    create_field_location
+    create_field_location,
 )
 
 # ------------------------------
 # ARGUMENTS
 # ------------------------------
 parser = argparse.ArgumentParser()
-parser.add_argument('--cv', type=int, choices={0, 1, 2}, required=True)
-parser.add_argument('--fold', type=int, choices={0, 1, 2, 3, 4}, required=True)
-parser.add_argument('--seed', type=int, required=True)
+parser.add_argument("--cv", type=int, choices={0, 1, 2}, required=True)
+parser.add_argument("--fold", type=int, choices={0, 1, 2, 3, 4}, required=True)
+parser.add_argument("--seed", type=int, required=True)
 args = parser.parse_args()
 
 # ------------------------------
 # CROSS VALIDATION CONFIG
 # ------------------------------
 if args.cv == 0:
-    print('Using CV0')
+    print("Using CV0")
     YTRAIN_YEAR, YVAL_YEAR, YTEST_YEAR = 2020, 2021, 2022
 elif args.cv == 1:
-    print('Using CV1')
+    print("Using CV1")
     YTRAIN_YEAR, YVAL_YEAR, YTEST_YEAR = 2021, 2021, 2022
 elif args.cv == 2:
-    print('Using CV2')
+    print("Using CV2")
     YTRAIN_YEAR, YVAL_YEAR, YTEST_YEAR = 2021, 2021, 2022
 
-print('Using fold', args.fold)
+print("Using fold", args.fold)
 
 # ------------------------------
 # PATH CONFIG — FLAT OUTPUTS
 # ------------------------------
 OUTPUT_PATH = Path(".")  # all outputs in main directory
-TRAIT_PATH = "data/Training Data/1_Training_Trait_Data_2014_2021.csv"
-TEST_PATH = "data/Testing Data/1_Submission_Template_2022.csv"
-META_TRAIN_PATH = "data/Training Data/2_Training_Meta_Data_2014_2021.csv"
-META_TEST_PATH = "data/Testing Data/2_Testing_Meta_Data_2022.csv"
+TRAIT_PATH = "1_Training_Trait_Data_2014_2021.csv"
+TEST_PATH = "1_Submission_Template_2022.csv"
+META_TRAIN_PATH = "2_Training_Meta_Data_2014_2021.csv"
+META_TEST_PATH = "2_Testing_Meta_Data_2022.csv"
 
-META_COLS = ['Env', 'weather_station_lat', 'weather_station_lon', 'treatment_not_standard']
-CAT_COLS = ['Env', 'Hybrid']
+META_COLS = [
+    "Env",
+    "weather_station_lat",
+    "weather_station_lon",
+    "treatment_not_standard",
+]
+CAT_COLS = ["Env", "Hybrid"]
 
 LAT_BIN_STEP = 1.2
 LON_BIN_STEP = LAT_BIN_STEP * 3
@@ -61,47 +66,57 @@ LON_BIN_STEP = LAT_BIN_STEP * 3
 # ------------------------------
 # MAIN PIPELINE
 # ------------------------------
-if __name__ == '__main__':
+if __name__ == "__main__":
     print("Loading metadata...")
     meta = process_metadata(META_TRAIN_PATH)
     meta_test = process_metadata(META_TEST_PATH)
 
     print("Loading test data...")
     test = process_test_data(TEST_PATH)
-    xtest = test.merge(meta_test[META_COLS], on='Env', how='left').drop(['Field_Location'], axis=1)
-    df_sub = xtest.reset_index()[['Env', 'Hybrid']]
+    xtest = test.merge(meta_test[META_COLS], on="Env", how="left").drop(
+        ["Field_Location"], axis=1
+    )
+    df_sub = xtest.reset_index()[["Env", "Hybrid"]]
 
     print("Loading training trait data...")
     trait = pd.read_csv(TRAIT_PATH)
-    trait = trait.merge(meta[META_COLS], on='Env', how='left')
+    trait = trait.merge(meta[META_COLS], on="Env", how="left")
     trait = create_field_location(trait)
     trait = agg_yield(trait)
 
     print("Loading environmental and soil data...")
-    weather = pd.read_csv('data/Training Data/4_Training_Weather_Data_2014_2021.csv')
-    weather_test = pd.read_csv('data/Testing Data/4_Testing_Weather_Data_2022.csv')
-    soil = pd.read_csv('data/Training Data/3_Training_Soil_Data_2015_2021.csv')
-    soil_test = pd.read_csv('data/Testing Data/3_Testing_Soil_Data_2022.csv')
-    ec = pd.read_csv('data/Training Data/6_Training_EC_Data_2014_2021.csv').set_index('Env')
-    ec_test = pd.read_csv('data/Testing Data/6_Testing_EC_Data_2022.csv').set_index('Env')
+    weather = pd.read_csv("4_Training_Weather_Data_2014_2021.csv")
+    weather_test = pd.read_csv("4_Testing_Weather_Data_2022.csv")
+    soil = pd.read_csv("3_Training_Soil_Data_2015_2021.csv")
+    soil_test = pd.read_csv("3_Testing_Soil_Data_2022.csv")
+    ec = pd.read_csv("6_Training_EC_Data_2014_2021.csv").set_index("Env")
+    ec_test = pd.read_csv("6_Testing_EC_Data_2022.csv").set_index("Env")
 
     # ------------------------------
     # FOLDS AND SPLITS
     # ------------------------------
     print("Creating folds...")
     random.seed(args.seed)
-    df_folds = create_folds(trait, val_year=YVAL_YEAR, cv=args.cv, fillna=False, random_state=args.seed)
-    xval = df_folds[df_folds['fold'] == args.fold].drop('fold', axis=1).reset_index(drop=True)
-    xtrain = df_folds[df_folds['fold'] == 99].drop('fold', axis=1).reset_index(drop=True)
+    df_folds = create_folds(
+        trait, val_year=YVAL_YEAR, cv=args.cv, fillna=False, random_state=args.seed
+    )
+    xval = (
+        df_folds[df_folds["fold"] == args.fold]
+        .drop("fold", axis=1)
+        .reset_index(drop=True)
+    )
+    xtrain = (
+        df_folds[df_folds["fold"] == 99].drop("fold", axis=1).reset_index(drop=True)
+    )
 
     # ------------------------------
     # BLUES
     # ------------------------------
     print("Merging BLUEs...")
-    blues = pd.read_csv('blues.csv')  # read from main dir (no output/blues.csv)
-    xtrain = xtrain.merge(blues, on=['Env', 'Hybrid'], how='right')
+    blues = pd.read_csv("blues.csv")  # read from main dir (no output/blues.csv)
+    xtrain = xtrain.merge(blues, on=["Env", "Hybrid"], how="right")
     xtrain = process_blues(xtrain)
-    xval = xval.merge(blues, on=['Env', 'Hybrid'], how='right')
+    xval = xval.merge(blues, on=["Env", "Hybrid"], how="right")
     xval = process_blues(xval)
 
     # ------------------------------
@@ -139,17 +154,23 @@ if __name__ == '__main__':
     # TRUNCATED SVD (OPTIONAL DIM REDUCTION)
     # ------------------------------
     print("Running SVD reduction (if applicable)...")
-    numeric_cols = xtrain.select_dtypes(include=['number']).columns
-    svd = TruncatedSVD(n_components=min(10, len(numeric_cols)-1))
+    numeric_cols = xtrain.select_dtypes(include=["number"]).columns
+    svd = TruncatedSVD(n_components=min(10, len(numeric_cols) - 1))
     svd.fit(xtrain[numeric_cols].fillna(0))
 
     xtrain_svd = svd.transform(xtrain[numeric_cols].fillna(0))
     xval_svd = svd.transform(xval[numeric_cols].fillna(0))
     xtest_svd = svd.transform(xtest[numeric_cols].fillna(0))
 
-    xtrain_svd = pd.DataFrame(xtrain_svd, columns=[f'svd_{i}' for i in range(xtrain_svd.shape[1])])
-    xval_svd = pd.DataFrame(xval_svd, columns=[f'svd_{i}' for i in range(xval_svd.shape[1])])
-    xtest_svd = pd.DataFrame(xtest_svd, columns=[f'svd_{i}' for i in range(xtest_svd.shape[1])])
+    xtrain_svd = pd.DataFrame(
+        xtrain_svd, columns=[f"svd_{i}" for i in range(xtrain_svd.shape[1])]
+    )
+    xval_svd = pd.DataFrame(
+        xval_svd, columns=[f"svd_{i}" for i in range(xval_svd.shape[1])]
+    )
+    xtest_svd = pd.DataFrame(
+        xtest_svd, columns=[f"svd_{i}" for i in range(xtest_svd.shape[1])]
+    )
 
     # Combine back
     xtrain = pd.concat([xtrain.reset_index(drop=True), xtrain_svd], axis=1)
@@ -160,10 +181,20 @@ if __name__ == '__main__':
     # WRITE OUTPUTS — FLAT STRUCTURE
     # ------------------------------
     print("Saving flattened outputs...")
-    xtrain.reset_index().to_csv(f'xtrain_cv{args.cv}_fold{args.fold}_seed{args.seed}.csv', index=False)
-    xval.reset_index().to_csv(f'xval_cv{args.cv}_fold{args.fold}_seed{args.seed}.csv', index=False)
-    xtest.reset_index().to_csv(f'xtest_cv{args.cv}_fold{args.fold}_seed{args.seed}.csv', index=False)
-    ytrain.reset_index().to_csv(f'ytrain_cv{args.cv}_fold{args.fold}_seed{args.seed}.csv', index=False)
-    yval.reset_index().to_csv(f'yval_cv{args.cv}_fold{args.fold}_seed{args.seed}.csv', index=False)
+    xtrain.reset_index().to_csv(
+        f"xtrain_cv{args.cv}_fold{args.fold}_seed{args.seed}.csv", index=False
+    )
+    xval.reset_index().to_csv(
+        f"xval_cv{args.cv}_fold{args.fold}_seed{args.seed}.csv", index=False
+    )
+    xtest.reset_index().to_csv(
+        f"xtest_cv{args.cv}_fold{args.fold}_seed{args.seed}.csv", index=False
+    )
+    ytrain.reset_index().to_csv(
+        f"ytrain_cv{args.cv}_fold{args.fold}_seed{args.seed}.csv", index=False
+    )
+    yval.reset_index().to_csv(
+        f"yval_cv{args.cv}_fold{args.fold}_seed{args.seed}.csv", index=False
+    )
 
     print("\n Finished successfully.")
