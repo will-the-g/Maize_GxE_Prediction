@@ -14,7 +14,7 @@ if (length(args) == 0) {
 
 # paths now in main directory
 kinship_path <- paste0("kinship_", kinship_type, ".txt")
-outfile <- paste0("kronecker_", kinship_type, "_cv", cv, ".arrow")
+outfile <- paste0("cv", cv, "_kronecker_", kinship_type, ".arrow")
 
 cat("Debug mode:", debug, "\n")
 cat("Using", kinship_type, "matrix\n")

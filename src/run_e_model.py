@@ -14,7 +14,6 @@ parser.add_argument("--fold", type=int, choices={0, 1, 2, 3, 4}, required=True)
 parser.add_argument("--seed", type=int, required=True)
 args = parser.parse_args()
 
-OUTPUT_PATH = Path(f"cv{args.cv}_")
 TRAIT_PATH = "1_Training_Trait_Data_2014_2021.csv"
 TEST_PATH = "1_Submission_Template_2022.csv"
 META_TRAIN_PATH = "2_Training_Meta_Data_2014_2021.csv"
@@ -24,14 +23,14 @@ META_TEST_PATH = "2_Testing_Meta_Data_2022.csv"
 if __name__ == "__main__":
     # df_sub = process_test_data(TEST_PATH).reset_index()[['Env', 'Hybrid']]
 
-    xtrain = pd.read_csv(OUTPUT_PATH / f"xtrain_fold{args.fold}_seed{args.seed}.csv")
-    xval = pd.read_csv(OUTPUT_PATH / f"xval_fold{args.fold}_seed{args.seed}.csv")
+    xtrain = pd.read_csv(f"cv{args.cv}_xtrain_fold{args.fold}_seed{args.seed}.csv")
+    xval = pd.read_csv(f"cv{args.cv}_xval_fold{args.fold}_seed{args.seed}.csv")
     # xtest = pd.read_csv(OUTPUT_PATH / 'xtest.csv')
     ytrain = pd.read_csv(
-        OUTPUT_PATH / f"ytrain_fold{args.fold}_seed{args.seed}.csv"
+        f"cv{args.cv}_ytrain_fold{args.fold}_seed{args.seed}.csv"
     ).set_index(["Env", "Hybrid"])["Yield_Mg_ha"]
     yval = pd.read_csv(
-        OUTPUT_PATH / f"yval_fold{args.fold}_seed{args.seed}.csv"
+        f"cv{args.cv}_yval_fold{args.fold}_seed{args.seed}.csv"
     ).set_index(["Env", "Hybrid"])["Yield_Mg_ha"]
 
     # add factor
@@ -54,7 +53,7 @@ if __name__ == "__main__":
     # feature importance
     df_feat_imp = feat_imp(model)
     df_feat_imp.to_csv(
-        OUTPUT_PATH / f"feat_imp_e_model_fold{args.fold}_seed{args.seed}.csv",
+        f"cv{args.cv}_feat_imp_e_model_fold{args.fold}_seed{args.seed}.csv",
         index=False,
     )
 
@@ -68,11 +67,11 @@ if __name__ == "__main__":
     _ = avg_rmse(df_eval)
 
     # write
-    outfile = OUTPUT_PATH / f"oof_e_model_fold{args.fold}_seed{args.seed}.csv"
+    outfile = f"cv{args.cv}_oof_e_model_fold{args.fold}_seed{args.seed}.csv"
     print("Writing:", outfile, "\n")
     df_eval.to_csv(outfile, index=False)
     df_eval_train.to_csv(
-        OUTPUT_PATH / f"pred_train_e_model_fold{args.fold}_seed{args.seed}.csv"
+        f"cv{args.cv}_pred_train_e_model_fold{args.fold}_seed{args.seed}.csv"
     )
 
     # predict on test

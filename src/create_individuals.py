@@ -9,7 +9,7 @@ def read_csvs(dataset):
     for fold in range(5):
         for seed in range(10):
             df_temp = pd.concat(
-                [pd.read_csv(OUTPUT_PATH / f'{dataset}_cv{cv}_fold{fold}_seed{seed + 1}.csv', usecols=['Hybrid']) for cv in [0, 1, 2]]
+                [pd.read_csv(OUTPUT_PATH / f'cv{cv}_{dataset}_fold{fold}_seed{seed + 1}.csv', usecols=['Hybrid']) for cv in [0, 1, 2]]
             )
         dfs.append(df_temp)
     df = pd.concat(dfs, axis=0, ignore_index=True)
