@@ -21,11 +21,11 @@ cat("Using", kinship_type, "matrix\n")
 
 # read training/validation features from main folder
 xtrain <- data.frame()
-for (file in list.files('.', pattern = paste0('xtrain_fold.*_cv', cv, '.*\\.csv$'))) {
+for (file in list.files('.', pattern = paste0('cv', cv, '_xtrain_fold.*\\.csv$'))) {
   xtrain <- rbind(xtrain, fread(file, data.table = FALSE))
 }
 xval <- data.frame()
-for (file in list.files('.', pattern = paste0('xval_fold.*_cv', cv, '.*\\.csv$'))) {
+for (file in list.files('.', pattern = paste0('cv', cv, 'xval_fold.*\\.csv$'))) {
   xval <- rbind(xval, fread(file, data.table = FALSE))
 }
 
@@ -42,11 +42,11 @@ x <- as.matrix(x)
 
 # read phenotypes from main folder
 ytrain <- data.frame()
-for (file in list.files('.', pattern = paste0('ytrain_fold.*_cv', cv, '.*\\.csv$'))) {
+for (file in list.files('.', pattern = paste0('cv', cv, 'ytrain_fold.*\\.csv$'))) {
   ytrain <- rbind(ytrain, fread(file, data.table = FALSE))
 }
 yval <- data.frame()
-for (file in list.files('.', pattern = paste0('yval_fold.*_cv', cv, '.*\\.csv$'))) {
+for (file in list.files('.', pattern = paste0('cv', cv, 'yval_fold.*\\.csv$'))) {
   yval <- rbind(yval, fread(file, data.table = FALSE))
 }
 
