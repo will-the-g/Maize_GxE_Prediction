@@ -243,6 +243,7 @@ class MaizeGxEWorkflow:
             .add_outputs(*ytrain, stage_out=True, register_replica=False)
             .add_outputs(*yval, stage_out=True, register_replica=False)
         )
+        job_datasets.add_pegasus_profile(memory="1024 MB")
 
         job_genomics = (
             Job("3-job_genomics.sh")
@@ -270,6 +271,7 @@ class MaizeGxEWorkflow:
             .add_outputs("maize_pruned.log", stage_out=True, register_replica=False)
             .add_outputs("kinships.txt", stage_out=True, register_replica=False)
         )
+        job_genomics.add_pegasus_profile(memory="1024 MB")
 
         job_kroneckers = (
             Job("4-job_kroneckers.sh")
@@ -299,6 +301,7 @@ class MaizeGxEWorkflow:
                 register_replica=False,
             )
         )
+        job_kroneckers.add_pegasus_profile(memory="4096 MB")
 
         job_e = (
             Job("5-job_e.sh")
@@ -319,6 +322,7 @@ class MaizeGxEWorkflow:
                 *pred_train_e_model_fold, stage_out=True, register_replica=False
             )
         )
+        job_e.add_pegasus_profile(memory="2048 MB")
 
         self.wf.add_jobs(job_blues, job_datasets, job_genomics, job_kroneckers, job_e)
 
