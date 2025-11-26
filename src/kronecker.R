@@ -25,7 +25,7 @@ for (file in list.files('.', pattern = paste0('cv', cv, '_xtrain_fold.*\\.csv$')
   xtrain <- rbind(xtrain, fread(file, data.table = FALSE))
 }
 xval <- data.frame()
-for (file in list.files('.', pattern = paste0('cv', cv, 'xval_fold.*\\.csv$'))) {
+for (file in list.files('.', pattern = paste0('cv', cv, '_xval_fold.*\\.csv$'))) {
   xval <- rbind(xval, fread(file, data.table = FALSE))
 }
 
@@ -42,11 +42,11 @@ x <- as.matrix(x)
 
 # read phenotypes from main folder
 ytrain <- data.frame()
-for (file in list.files('.', pattern = paste0('cv', cv, 'ytrain_fold.*\\.csv$'))) {
+for (file in list.files('.', pattern = paste0('cv', cv, '_ytrain_fold.*\\.csv$'))) {
   ytrain <- rbind(ytrain, fread(file, data.table = FALSE))
 }
 yval <- data.frame()
-for (file in list.files('.', pattern = paste0('cv', cv, 'yval_fold.*\\.csv$'))) {
+for (file in list.files('.', pattern = paste0('cv', cv, '_yval_fold.*\\.csv$'))) {
   yval <- rbind(yval, fread(file, data.table = FALSE))
 }
 
