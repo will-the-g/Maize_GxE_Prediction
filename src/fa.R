@@ -1,7 +1,7 @@
 options(warn = 1)
 
 library(data.table)
-library(asreml)
+library(sommer)
 
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) == 0) {
@@ -19,22 +19,6 @@ if (length(args) == 0) {
 }
 cat('debug:', debug, '\n')
 cat('invert:', invert, '\n')
-
-if (cv == 0) {
-  asreml.options(
-    workspace = '6gb',
-    pworkspace = '12gb',
-    maxit = 300,
-    na.action = na.method(y = 'include', x = 'omit')
-  )
-} else {
-  asreml.options(
-    workspace = '8gb',
-    pworkspace = '16gb',
-    maxit = 300,
-    na.action = na.method(y = 'include', x = 'omit')
-  )
-}
 
 # datasets
 ytrain <- fread(paste0('output/cv', cv, '/ytrain_fold', fold, '_seed', seed, '.csv'), data.table = F)
@@ -62,91 +46,123 @@ if (debug == TRUE) {
 cat('Number of individuals being used:', nrow(kmatrix), '\n')
 cat('dim:', dim(kmatrix), '\n')
 
-# invert relationship matrix
+# prepare relationship matrix for sommer
 if (invert == TRUE) {
   A <- MASS::ginv(kmatrix)
   print(A[1:5, 1:5])
-  
-  # changing inverted A matrix format to be used in asreml
-  A[upper.tri(A)] <- NA
-  A <- na.omit(reshape2::melt(A))  # returns data.frame row, col, value
-  rownames(A) <- NULL
-  ginv <- data.frame(
-    Row = A[, 2],
-    Column = A[, 1],
-    GINV = A[, 3]
-  )
-  attr(ginv, 'rowNames') <- rownames(kmatrix)
-  attr(ginv, 'INVERSE') <- TRUE
+  A_list <- list(Hybrid = A)
+} else {
+  A_list <- list(Hybrid = kmatrix)
 }
 
 # modeling
 set.seed(2023)
 gc()
-if (invert == TRUE) {
-  mod <- asreml(
+
+converged <- FALSE
+mod <- NULL
+
+tryCatch({
+  mod <- mmer(
     Yield_Mg_ha ~ Env,
-    random = ~ fa(Env):vm(Hybrid, source = ginv),
-    predict = predict.asreml(classify = 'Env:Hybrid'),
-    data = ytrain
-  )
-} else {
-  mod <- asreml(
-    Yield_Mg_ha ~ Env,
-    random = ~ fa(Env):vm(Hybrid, source = kmatrix, singG = 'NSD'),
-    predict = predict.asreml(classify = 'Env:Hybrid'),
+    random = ~ vsr(usr(Env), Hybrid, Gu = A_list),
     data = ytrain,
+    verbose = FALSE
   )
-}
+  
+  # check convergence
+  if (!is.null(mod$convergence) && mod$convergence == TRUE) {
+    converged <- TRUE
+    cat('Model converged successfully\n')
+  } else {
+    cat('WARNING: Model may not have converged properly\n')
+    converged <- FALSE
+  }
+  
+}, error = function(e) {
+  cat('ERROR: Model fitting failed:', conditionMessage(e), '\n')
+  converged <<- FALSE
+})
+
 gc()
-varcomp <- summary(mod)$varcomp
-varcomp <- transform(varcomp, component = round(component, 8))
-print(varcomp)
-fa_comps <- nrow(varcomp) - 1  # -1 due sigma_R
-cat('Number of components estimated for FA(1):', fa_comps, '\n')
 
-# FA number of estimated components is E(k+1) - k(k-1)/2, where E is the number of environments and k is the FA order
-E <- length(unique(ytrain$Env))
-k <- 1
-exp_fa_comps <- E * (k + 1) - 0.5 * k * (k - 1)
-cat('Number of componentes expected from formula (E(k+1) - k(k-1)/2):', exp_fa_comps, '\n')
-
-evaluate <- function(df) {
-  df$error <- df$Yield_Mg_ha - df$predicted.value
-  rmses <- with(df, aggregate(error, by = list(Env), FUN = function(x) sqrt(mean(x ^ 2))))
-  colnames(rmses) <- c('Env', 'RMSE')
-  print(rmses)
-  cat('RMSE:', mean(rmses$RMSE), '\n')
+if (!is.null(mod)) {
+  varcomp <- as.data.frame(summary(mod)$varcomp)
+  varcomp <- transform(varcomp, VarComp = round(VarComp, 8))
+  print(varcomp)
+  
+  # Count variance components (excluding residual)
+  fa_comps <- sum(grepl('Env.*Hybrid', rownames(varcomp)))
+  cat('Number of variance components estimated:', fa_comps, '\n')
+  
+  # FA number of estimated components is E(k+1) - k(k-1)/2, where E is the number of environments and k is the FA order
+  E <- length(unique(ytrain$Env))
+  k <- 1
+  exp_fa_comps <- E * (k + 1) - 0.5 * k * (k - 1)
+  cat('Number of componentes expected from formula (E(k+1) - k(k-1)/2):', exp_fa_comps, '\n')
+  
+  evaluate <- function(df) {
+    df$error <- df$Yield_Mg_ha - df$predicted.value
+    rmses <- with(df, aggregate(error, by = list(Env), FUN = function(x) sqrt(mean(x ^ 2))))
+    colnames(rmses) <- c('Env', 'RMSE')
+    print(rmses)
+    cat('RMSE:', mean(rmses$RMSE), '\n')
+  }
+  
+  # get predictions
+  pred <- predict(mod, classify = c('Env', 'Hybrid'))
+  pred <- as.data.frame(pred$pvals)
+  pred <- pred[, c('Env', 'Hybrid', 'predicted.value')]
+  
+  pred_train_env_hybrid <- merge(ytrain, pred, by = c('Env', 'Hybrid'))
+  
+  # average between years
+  val_year <- sub('(.*)_', '', yval$Env[1])
+  pred$Field_Location <- as.factor(sub('_(.*)', '', pred$Env))
+  pred <- with(pred, aggregate(predicted.value, list(Field_Location, Hybrid), mean))
+  colnames(pred) <- c('Field_Location', 'Hybrid', 'predicted.value')
+  pred$Env <- paste0(pred$Field_Location, '_', val_year)
+  
+  # merge on val
+  pred_env_hybrid <- merge(yval, pred, by = c('Env', 'Hybrid'))
+  evaluate(pred_env_hybrid)
+  
+  # write predictions
+  cols <- c('Env', 'Hybrid', 'Yield_Mg_ha', 'predicted.value')
+  pred_env_hybrid <- pred_env_hybrid[, cols]
+  colnames(pred_env_hybrid) <- c('Env', 'Hybrid', 'ytrue', 'ypred')
+  
+  # Add convergence flag to output
+  pred_env_hybrid$converged <- converged
+  
+  if (debug == FALSE) {
+    fwrite(pred_env_hybrid, paste0('output/cv', cv, '/oof_fa_model_fold', fold, '_seed', seed, '.csv'))
+  }
+  
+  # write predictions for train
+  pred_train_env_hybrid <- pred_train_env_hybrid[, cols]
+  colnames(pred_train_env_hybrid) <- c('Env', 'Hybrid', 'ytrue', 'ypred')
+  pred_train_env_hybrid$converged <- converged
+  
+  if (debug == FALSE) {
+    fwrite(pred_train_env_hybrid, paste0('output/cv', cv, '/pred_train_fa_model_fold', fold, '_seed', seed, '.csv'))
+  }
+  
+  cat('Correlation:', cor(pred_env_hybrid$ytrue, pred_env_hybrid$ypred), '\n')
+  # plot(pred_env_hybrid$ytrue, pred_env_hybrid$ypred)
+  
+} else {
+  cat('ERROR: Could not fit model, no predictions generated\n')
+  if (debug == FALSE) {
+    # Write empty files to indicate failure
+    empty_df <- data.frame(
+      Env = character(0),
+      Hybrid = character(0),
+      ytrue = numeric(0),
+      ypred = numeric(0),
+      converged = logical(0)
+    )
+    fwrite(empty_df, paste0('output/cv', cv, '/oof_fa_model_fold', fold, '_seed', seed, '.csv'))
+    fwrite(empty_df, paste0('output/cv', cv, '/pred_train_fa_model_fold', fold, '_seed', seed, '.csv'))
+  }
 }
-
-pred <- as.data.frame(mod$predictions$pvals)[, 1:3]
-pred_train_env_hybrid <- merge(ytrain, pred, by = c('Env', 'Hybrid'))
-
-# average between years
-val_year <- sub('(.*)_', '', yval$Env[1])
-pred$Field_Location <- as.factor(sub('_(.*)', '', pred$Env))
-pred <- with(pred, aggregate(predicted.value, list(Field_Location, Hybrid), mean))
-colnames(pred) <- c('Field_Location', 'Hybrid', 'predicted.value')
-pred$Env <- paste0(pred$Field_Location, '_', val_year)
-
-# merge on val
-pred_env_hybrid <- merge(yval, pred, by = c('Env', 'Hybrid'))
-evaluate(pred_env_hybrid)
-
-# write predictions
-cols <- c('Env', 'Hybrid', 'Yield_Mg_ha', 'predicted.value')
-pred_env_hybrid <- pred_env_hybrid[, cols]
-colnames(pred_env_hybrid) <- c('Env', 'Hybrid', 'ytrue', 'ypred')
-if (debug == FALSE) {
-  fwrite(pred_env_hybrid, paste0('output/cv', cv, '/oof_fa_model_fold', fold, '_seed', seed, '.csv'))
-}
-
-# write predictions for train
-pred_train_env_hybrid <- pred_train_env_hybrid[, cols]
-colnames(pred_train_env_hybrid) <- c('Env', 'Hybrid', 'ytrue', 'ypred')
-if (debug == FALSE) {
-  fwrite(pred_train_env_hybrid, paste0('output/cv', cv, '/pred_train_fa_model_fold', fold, '_seed', seed, '.csv'))
-}
-
-cor(pred_env_hybrid$ytrue, pred_env_hybrid$ypred)
-# plot(pred_env_hybrid$ytrue, pred_env_hybrid$ypred)

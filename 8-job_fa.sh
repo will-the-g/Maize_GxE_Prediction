@@ -19,7 +19,7 @@ do
     for fold in {0..4}
     do
         echo "Fold=${fold}"
-        Rscript fa.R $cv $fold $seed $debug $invert > "logs/fa_cv${cv}_fold${fold}_seed${seed}.txt"
+        Rscript fa.R $cv $fold $seed $debug $invert #> "logs/fa_cv${cv}_fold${fold}_seed${seed}.txt"
     done
     echo " "
 done
