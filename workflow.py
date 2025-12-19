@@ -163,6 +163,7 @@ class MaizeGxEWorkflow:
         )
         self.tc.add_transformations(tc)
         transforms["5-job_e.sh"].add_requirement(tc)
+
         tc = Transformation(
             "evaluate.py",
             site="local",
@@ -171,6 +172,25 @@ class MaizeGxEWorkflow:
         )
         self.tc.add_transformations(tc)
         transforms["5-job_e.sh"].add_requirement(tc)
+
+        tc = Transformation(
+            "run_g_or_gxe_model.py",
+            site="local",
+            pfn=(file.parent / "src/run_g_or_gxe_model.py").resolve(),
+            is_stageable=True,
+        )
+        self.tc.add_transformations(tc)
+        transforms["6-job_g.sh"].add_requirement(tc)
+        transforms["7-job_gxe.sh"].add_requirement(tc)
+
+        tc = Transformation(
+            "fa.R",
+            site="local",
+            pfn=(file.parent / "src/fa.R").resolve(),
+            is_stageable=True,
+        )
+        self.tc.add_transformations(tc)
+        transforms["8-job_fa.sh"].add_requirement(tc)
 
     # --- Replica Catalog (Executables and Containers) ------------------------
     def create_replica_catalog(self, data_dir):
@@ -201,6 +221,10 @@ class MaizeGxEWorkflow:
         feat_imp_e_model_fold = set()
         oof_e_model_fold = set()
         pred_train_e_model_fold = set()
+        oof_g_model_fold = set()
+        oof_gxe_model_fold = set()
+        oof_fa_model_fold = set()
+        pred_train_fa_model_fold = set()
         # logs_e_model_cv = set()
         for cv in range(3):
             for fold in range(5):
@@ -219,6 +243,18 @@ class MaizeGxEWorkflow:
                     )
                     pred_train_e_model_fold.add(
                         f"cv{cv}_pred_train_e_model_fold{fold}_seed{seed}.csv"
+                    )
+                    # oof_g_model_fold.add(
+                    #     f"cv{cv}_oof_g_model_fold{fold}_seed{seed}.csv"
+                    # )
+                    # oof_gxe_model_fold.add(
+                    #     f"cv{cv}_oof_gxe_model_fold{fold}_seed{seed}.csv"
+                    # )
+                    oof_fa_model_fold.add(
+                        f"cv{cv}_oof_fa_model_fold{fold}_seed{seed}.csv"
+                    )
+                    pred_train_fa_model_fold.add(
+                        f"cv{cv}_pred_train_fa_model_fold{fold}_seed{seed}.csv"
                     )
                     # logs_e_model_cv.add(
                     #     f"logs/e_model_cv{cv}_fold{fold}_seed{seed}.txt"
@@ -324,7 +360,51 @@ class MaizeGxEWorkflow:
         )
         job_e.add_pegasus_profile(memory="2048 MB")
 
-        self.wf.add_jobs(job_blues, job_datasets, job_genomics, job_kroneckers, job_e)
+        job_g = (
+            Job("6-job_g.sh")
+            .add_inputs(*xtrain)
+            .add_inputs(*xval)
+            .add_inputs(*ytrain)
+            .add_inputs(*yval)
+            .add_inputs(
+                *[f"kinship_{kinship}.txt" for kinship in ("additive", "dominant")]
+            )
+            # .add_outputs(*feat_imp_e_model_fold, stage_out=True, register_replica=False)
+        )
+
+        job_gxe = (
+            Job("7-job_gxe.sh")
+            .add_inputs(*xtrain)
+            .add_inputs(*xval)
+            .add_inputs(*ytrain)
+            .add_inputs(*yval)
+            .add_inputs(
+                *[f"kronecker_{kinship}.arrow" for kinship in ("additive", "dominant")]
+            )
+            # .add_outputs(*feat_imp_e_model_fold, stage_out=True, register_replica=False)
+        )
+
+        job_fa = (
+            Job("8-job_fa.sh")
+            .add_inputs(*ytrain)
+            .add_inputs(*yval)
+            .add_inputs("kinship_additive.txt")
+            .add_outputs(*oof_fa_model_fold, stage_out=True, register_replica=False)
+            .add_outputs(
+                *pred_train_fa_model_fold, stage_out=True, register_replica=False
+            )
+        )
+
+        self.wf.add_jobs(
+            job_blues,
+            job_datasets,
+            job_genomics,
+            job_kroneckers,
+            job_e,
+            job_g,
+            job_gxe,
+            job_fa,
+        )
 
 
 if __name__ == "__main__":
