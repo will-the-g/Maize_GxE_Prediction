@@ -24,14 +24,14 @@ parser.add_argument('--n_components', type=int, default=100)
 parser.add_argument('--lag_features', action='store_true', default=False)
 args = parser.parse_args()
 
-OUTPUT_PATH = Path(f'output/cv{args.cv}')
+PREFIX = f'cv{args.cv}_'
 
 if args.model == 'G':
-    outfile = OUTPUT_PATH / f'oof_g_model_fold{args.fold}_seed{args.seed}'
+    outfile = Path(f'{PREFIX}oof_g_model_fold{args.fold}_seed{args.seed}')
     print('Using G model.')
 else:
     print('Using GxE model.')
-    outfile = OUTPUT_PATH / f'oof_gxe_model_fold{args.fold}_seed{args.seed}'
+    outfile = Path(f'{PREFIX}oof_gxe_model_fold{args.fold}_seed{args.seed}')
 
 
 def preprocess_g(df, kinship, individuals: list):
@@ -61,7 +61,7 @@ def preprocess_kron(df, kinship):
 
 def prepare_gxe(kinship):
     print(f"KINSHIP: {kinship}")
-    kron = pd.read_feather(OUTPUT_PATH / f'kronecker_{kinship}.arrow')
+    kron = pd.read_feather(Path(f'{PREFIX}kronecker_{kinship}.arrow'))
     print(f"KRON: {kron}")
     kron = preprocess_kron(kron, kinship=kinship)
     return kron
@@ -70,8 +70,8 @@ def prepare_gxe(kinship):
 if __name__ == '__main__':
     
     # load targets
-    ytrain = pd.read_csv(OUTPUT_PATH / f'ytrain_fold{args.fold}_seed{args.seed}.csv')
-    yval = pd.read_csv(OUTPUT_PATH / f'yval_fold{args.fold}_seed{args.seed}.csv')
+    ytrain = pd.read_csv(Path(f'{PREFIX}ytrain_fold{args.fold}_seed{args.seed}.csv'))
+    yval = pd.read_csv(Path(f'{PREFIX}yval_fold{args.fold}_seed{args.seed}.csv'))
     individuals = ytrain['Hybrid'].unique().tolist() + yval['Hybrid'].unique().tolist()
     individuals = list(dict.fromkeys(individuals))  # take unique but preserves order (python 3.7+)
     yval["Hybrid"] = yval["Hybrid"].str.replace(r'^Hybrid', '', regex=True)
@@ -83,7 +83,7 @@ if __name__ == '__main__':
         print('Using A matrix.')
         outfile = f'{outfile}_A'
         if args.model == 'G':
-            A = pd.read_csv('output/kinship_additive.txt', sep='\t')
+            A = pd.read_csv('kinship_additive.txt', sep='\t')
             print("A:\n ", A)
             A = preprocess_g(A, 'A', individuals)
             print("A2:\n ", A)
@@ -94,7 +94,7 @@ if __name__ == '__main__':
         print('Using D matrix.')
         outfile = f'{outfile}_D'
         if args.model == 'G':
-            D = pd.read_csv('output/kinship_dominant.txt', sep='\t')
+            D = pd.read_csv('kinship_dominant.txt', sep='\t')
             D = preprocess_g(D, 'D', individuals)
             kinships.append(D)
         else:
@@ -103,8 +103,8 @@ if __name__ == '__main__':
         if args.model == 'G':
             print('Using E matrix.')
             outfile = f'{outfile}_E'
-            Etrain = pd.read_csv(OUTPUT_PATH / f'xtrain_fold{args.fold}_seed{args.seed}.csv')
-            Eval = pd.read_csv(OUTPUT_PATH / f'xval_fold{args.fold}_seed{args.seed}.csv')
+            Etrain = pd.read_csv(Path(f'{PREFIX}xtrain_fold{args.fold}_seed{args.seed}.csv'))
+            Eval = pd.read_csv(Path(f'{PREFIX}xval_fold{args.fold}_seed{args.seed}.csv'))
         else:
             raise Exception('G+E+GxE is not implemented.')
         
@@ -161,8 +161,8 @@ if __name__ == '__main__':
     no_lags_cols = [x for x in xtrain.columns.tolist() if x not in ['Env', 'Hybrid']]
     
     if args.lag_features:
-        xtrain_lag = pd.read_csv(OUTPUT_PATH / f'xtrain_fold{args.fold}_seed{args.seed}.csv', usecols=lambda x: 'yield_lag' in x or x in ['Env', 'Hybrid']).set_index(['Env', 'Hybrid'])
-        xval_lag = pd.read_csv(OUTPUT_PATH / f'xval_fold{args.fold}_seed{args.seed}.csv', usecols=lambda x: 'yield_lag' in x or x in ['Env', 'Hybrid']).set_index(['Env', 'Hybrid'])
+        xtrain_lag = pd.read_csv(Path(f'{PREFIX}xtrain_fold{args.fold}_seed{args.seed}.csv'), usecols=lambda x: 'yield_lag' in x or x in ['Env', 'Hybrid']).set_index(['Env', 'Hybrid'])
+        xval_lag = pd.read_csv(Path(f'{PREFIX}xval_fold{args.fold}_seed{args.seed}.csv'), usecols=lambda x: 'yield_lag' in x or x in ['Env', 'Hybrid']).set_index(['Env', 'Hybrid'])
         outfile = f'{outfile}_lag_features'
 
         
