@@ -127,6 +127,8 @@ class MaizeGxEWorkflow:
         self.tc.add_transformations(tc)
         transforms["2-job_datasets.sh"].add_requirement(tc)
         transforms["5-job_e.sh"].add_requirement(tc)
+        transforms["6-job_g.sh"].add_requirement(tc)
+        transforms["7-job_gxe.sh"].add_requirement(tc)
 
         tc = Transformation(
             "create_individuals.py",
@@ -172,6 +174,8 @@ class MaizeGxEWorkflow:
         )
         self.tc.add_transformations(tc)
         transforms["5-job_e.sh"].add_requirement(tc)
+        transforms["6-job_g.sh"].add_requirement(tc)
+        transforms["7-job_gxe.sh"].add_requirement(tc)
 
         tc = Transformation(
             "run_g_or_gxe_model.py",
@@ -222,7 +226,9 @@ class MaizeGxEWorkflow:
         oof_e_model_fold = set()
         pred_train_e_model_fold = set()
         oof_g_model_fold = set()
+        pred_train_g_model_fold = set()
         oof_gxe_model_fold = set()
+        pred_train_gxe_model_fold = set()
         oof_fa_model_fold = set()
         pred_train_fa_model_fold = set()
         # logs_e_model_cv = set()
@@ -244,12 +250,42 @@ class MaizeGxEWorkflow:
                     pred_train_e_model_fold.add(
                         f"cv{cv}_pred_train_e_model_fold{fold}_seed{seed}.csv"
                     )
-                    # oof_g_model_fold.add(
-                    #     f"cv{cv}_oof_g_model_fold{fold}_seed{seed}.csv"
-                    # )
-                    # oof_gxe_model_fold.add(
-                    #     f"cv{cv}_oof_gxe_model_fold{fold}_seed{seed}.csv"
-                    # )
+                    oof_g_model_fold.add(
+                        f"cv{cv}_oof_g_model_fold{fold}_seed{seed}_A_lag_features_svd100comps.csv"
+                    )
+                    oof_g_model_fold.add(
+                        f"cv{cv}_oof_g_model_fold{fold}_seed{seed}_A_E_lag_features_svd100comps.csv"
+                    )
+                    oof_g_model_fold.add(
+                        f"cv{cv}_oof_g_model_fold{fold}_seed{seed}_D_lag_features_svd100comps.csv"
+                    )
+                    oof_g_model_fold.add(
+                        f"cv{cv}_oof_g_model_fold{fold}_seed{seed}_D_E_lag_features_svd100comps.csv"
+                    )
+                    pred_train_g_model_fold.add(
+                        f"cv{cv}_pred_train_g_model_fold{fold}_seed{seed}_A_lag_features_svd100comps.csv"
+                    )
+                    pred_train_g_model_fold.add(
+                        f"cv{cv}_pred_train_g_model_fold{fold}_seed{seed}_A_E_lag_features_svd100comps.csv"
+                    )
+                    pred_train_g_model_fold.add(
+                        f"cv{cv}_pred_train_g_model_fold{fold}_seed{seed}_D_lag_features_svd100comps.csv"
+                    )
+                    pred_train_g_model_fold.add(
+                        f"cv{cv}_pred_train_g_model_fold{fold}_seed{seed}_D_E_lag_features_svd100comps.csv"
+                    )
+                    oof_gxe_model_fold.add(
+                        f"cv{cv}_oof_gxe_model_fold{fold}_seed{seed}_A_lag_features_svd100comps.csv"
+                    )
+                    oof_gxe_model_fold.add(
+                        f"cv{cv}_oof_gxe_model_fold{fold}_seed{seed}_D_lag_features_svd100comps.csv"
+                    )
+                    pred_train_gxe_model_fold.add(
+                        f"cv{cv}_pred_train_gxe_model_fold{fold}_seed{seed}_A_lag_features_svd100comps.csv"
+                    )
+                    pred_train_gxe_model_fold.add(
+                        f"cv{cv}_pred_train_gxe_model_fold{fold}_seed{seed}_D_lag_features_svd100comps.csv"
+                    )
                     oof_fa_model_fold.add(
                         f"cv{cv}_oof_fa_model_fold{fold}_seed{seed}.csv"
                     )
@@ -320,15 +356,6 @@ class MaizeGxEWorkflow:
             )
             .add_outputs(
                 *[
-                    f"kronecker_{kinship}_cv{cv}.txt"
-                    for cv in range(3)
-                    for kinship in ("additive", "dominant")
-                ],
-                stage_out=True,
-                register_replica=False,
-            )
-            .add_outputs(
-                *[
                     f"cv{cv}_kronecker_{kinship}.arrow"
                     for cv in range(3)
                     for kinship in ("additive", "dominant")
@@ -337,7 +364,7 @@ class MaizeGxEWorkflow:
                 register_replica=False,
             )
         )
-        job_kroneckers.add_pegasus_profile(memory="4096 MB")
+        job_kroneckers.add_pegasus_profile(memory="50 GB")
 
         job_e = (
             Job("5-job_e.sh")
@@ -369,8 +396,12 @@ class MaizeGxEWorkflow:
             .add_inputs(
                 *[f"kinship_{kinship}.txt" for kinship in ("additive", "dominant")]
             )
-            # .add_outputs(*feat_imp_e_model_fold, stage_out=True, register_replica=False)
+            .add_inputs(
+                *[f"cv{cv}_kronecker_{kinship}.arrow" for cv in range(3) for kinship in ("additive", "dominant")]
+            )
+            .add_outputs(*oof_g_model_fold, *pred_train_g_model_fold, stage_out=True, register_replica=False)
         )
+        job_g.add_pegasus_profile(memory="2048 MB ")
 
         job_gxe = (
             Job("7-job_gxe.sh")
@@ -379,10 +410,11 @@ class MaizeGxEWorkflow:
             .add_inputs(*ytrain)
             .add_inputs(*yval)
             .add_inputs(
-                *[f"kronecker_{kinship}.arrow" for kinship in ("additive", "dominant")]
+                *[f"cv{cv}_kronecker_{kinship}.arrow" for cv in range(3) for kinship in ("additive", "dominant")]
             )
-            # .add_outputs(*feat_imp_e_model_fold, stage_out=True, register_replica=False)
+            .add_outputs(*oof_gxe_model_fold, *pred_train_gxe_model_fold, stage_out=True, register_replica=False)
         )
+        job_gxe.add_pegasus_profile(memory="60 GB")
 
         job_fa = (
             Job("8-job_fa.sh")
@@ -394,6 +426,7 @@ class MaizeGxEWorkflow:
                 *pred_train_fa_model_fold, stage_out=True, register_replica=False
             )
         )
+        job_fa.add_pegasus_profile(memory="4096 MB")
 
         self.wf.add_jobs(
             job_blues,
@@ -405,6 +438,16 @@ class MaizeGxEWorkflow:
             job_gxe,
             job_fa,
         )
+
+        self.wf.add_dependency(job_datasets, parents=[job_blues])
+        self.wf.add_dependency(job_genomics, parents=[job_datasets])
+        self.wf.add_dependency(job_kroneckers, parents=[job_genomics])
+        self.wf.add_dependency(job_e, parents=[job_kroneckers])
+        self.wf.add_dependency(job_g, parents=[job_e])
+        self.wf.add_dependency(job_gxe, parents=[job_g])
+        self.wf.add_dependency(job_fa, parents=[job_gxe])
+
+
 
 
 if __name__ == "__main__":
